@@ -1,0 +1,53 @@
+2025-01-07 17:42:32 [DEBUG]: Tous les modèles ont été validés avec succès.
+2025-01-07 17:51:31 [DEBUG]: Middleware messageRoutes : req.requiredModels = Message
+2025-01-07 17:51:31 [DEBUG]: DSP Code reçu : vtrl1
+2025-01-07 17:51:31 [DEBUG]: Connexion établie pour la base : vtrl1
+2025-01-07 17:51:31 [DEBUG]: Modèles demandés (req.requiredModels) : Message
+2025-01-07 17:51:31 [DEBUG]: Tentative d'initialisation du modèle : Message
+2025-01-07 17:51:31 [DEBUG]: Modèle "Message" non trouvé dans connection.models. Création en cours...
+2025-01-07 17:51:31 [DEBUG]: Demande de modèle : Message
+2025-01-07 17:51:31 [INFO]: Modèle "Message" créé avec succès.
+2025-01-07 17:51:31 [DEBUG]: Modèle "Message" initialisé avec succès.
+2025-01-07 17:51:31 [DEBUG]: Modèles nécessaires initialisés : Message
+2025-01-07 17:51:31 [DEBUG]: req.connection.models après injection : Message
+2025-01-07 17:51:31 [DEBUG]: Middleware conversationRoutes : req.requiredModels = Conversation,Message
+2025-01-07 17:51:31 [DEBUG]: DSP Code reçu : vtrl1
+2025-01-07 17:51:31 [DEBUG]: Connexion établie pour la base : vtrl1
+2025-01-07 17:51:31 [DEBUG]: Modèles demandés (req.requiredModels) : Conversation, Message
+2025-01-07 17:51:31 [DEBUG]: Tentative d'initialisation du modèle : Conversation
+2025-01-07 17:51:31 [DEBUG]: Modèle "Conversation" non trouvé dans connection.models. Création en cours...
+2025-01-07 17:51:31 [DEBUG]: Demande de modèle : Conversation
+2025-01-07 17:51:31 [INFO]: Modèle "Conversation" créé avec succès.
+2025-01-07 17:51:31 [DEBUG]: Modèle "Conversation" initialisé avec succès.
+2025-01-07 17:51:31 [DEBUG]: Tentative d'initialisation du modèle : Message
+2025-01-07 17:51:31 [DEBUG]: Modèle "Message" non trouvé dans connection.models. Création en cours...
+2025-01-07 17:51:31 [DEBUG]: Demande de modèle : Message
+2025-01-07 17:51:31 [INFO]: Modèle "Message" créé avec succès.
+2025-01-07 17:51:31 [DEBUG]: Modèle "Message" initialisé avec succès.
+2025-01-07 17:51:31 [DEBUG]: Modèles nécessaires initialisés : Conversation, Message
+2025-01-07 17:51:31 [DEBUG]: req.connection.models après injection : Conversation, Message
+2025-01-07 17:51:32 [DEBUG]: Connexion établie à la base : VTRL
+2025-01-07 17:51:32 [DEBUG]: Connexion établie à la base : VTRL
+2025-01-07 17:51:32 [DEBUG]: Middleware messageRoutes : req.requiredModels = Message
+2025-01-07 17:51:32 [DEBUG]: DSP Code reçu : vtrl1
+2025-01-07 17:51:32 [DEBUG]: Connexion établie pour la base : vtrl1
+2025-01-07 17:51:32 [DEBUG]: Modèles demandés (req.requiredModels) : Message
+2025-01-07 17:51:32 [DEBUG]: Tentative d'initialisation du modèle : Message
+2025-01-07 17:51:32 [DEBUG]: Modèle "Message" déjà existant dans connection.models.
+2025-01-07 17:51:32 [DEBUG]: Modèles nécessaires initialisés : Message
+2025-01-07 17:51:32 [DEBUG]: req.connection.models après injection : Conversation, Message
+2025-01-07 17:51:32 [DEBUG]: Middleware conversationRoutes : req.requiredModels = Conversation,Message
+2025-01-07 17:51:32 [DEBUG]: DSP Code reçu : vtrl1
+2025-01-07 17:51:32 [DEBUG]: Connexion établie pour la base : vtrl1
+2025-01-07 17:51:32 [DEBUG]: Modèles demandés (req.requiredModels) : Conversation, Message
+2025-01-07 17:51:32 [DEBUG]: Tentative d'initialisation du modèle : Conversation
+2025-01-07 17:51:32 [DEBUG]: Modèle "Conversation" déjà existant dans connection.models.
+2025-01-07 17:51:32 [DEBUG]: Tentative d'initialisation du modèle : Message
+2025-01-07 17:51:32 [DEBUG]: Modèle "Message" déjà existant dans connection.models.
+2025-01-07 17:51:32 [DEBUG]: Modèles nécessaires initialisés : Conversation, Message
+2025-01-07 17:51:32 [DEBUG]: req.connection.models après injection : Conversation, Message
+2025-01-07 18:01:31 [WARN]: Déconnexion automatique de la base : VTRL
+2025-01-07 18:01:31 [DEBUG]: Connexion fermée pour inactivité (VTRL).
+2025-01-07 18:01:31 [WARN]: Déconnexion automatique de la base : VTRL
+2025-01-07 18:01:31 [DEBUG]: Connexion fermée pour inactivité (VTRL).
+2025-01-07 18:55:29 [DEBUG]: Fermeture des connexions MongoDB...
