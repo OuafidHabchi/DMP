@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const http = require('http'); // Importer http pour créer le serveur
+const http = require('https'); // Importer http pour créer le serveur
 const socketIo = require('socket.io'); // Importer Socket.IO
 const path = require('path');
 require('dotenv').config();

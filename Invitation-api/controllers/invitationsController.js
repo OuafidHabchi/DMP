@@ -1,68 +1,101 @@
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 
 exports.addEmployeFromManager = async (req, res) => {
-  try {
-    const { dsp_code, email } = req.body;
+    try {
+        const { dsp_code, email } = req.body;
 
-    if (!dsp_code || !email) {
-      return res.status(500).json({ message: "Dsp_Code and email are required." });
-    }
+        if (!dsp_code || !email) {
+            return res.status(500).json({ message: "Dsp_Code and email are required." });
+        }
+        // ✅ 1. Enregistrer l'invitation dans MongoDB d'abord pour obtenir l'ID
+        const Invitation = req.connection.models.Invitation;
+        const newInvitation = new Invitation({
+            dsp_code,
+            email,
+            fonctionnel: true,
+        });
 
-    // ✅ 1. Utilisation du modèle dynamique
-    const Invitation = req.connection.models.Invitation;
+        await newInvitation.save();
 
-    // ✅ 2. Enregistrer l'invitation dans MongoDB
-    const newInvitation = new Invitation({
-      dsp_code,
-      email,
-      fonctionnel: true,
-    });
-    await newInvitation.save();
+        // ✅ 2. Générer le lien personnalisé avec l'_id de l'invitation
+        const deepLink = `myapp://signup?code=${dsp_code}&invitationId=${newInvitation._id}`;
 
-    // ✅ 3. Générer le lien personnalisé avec l'_id de l'invitation
-    const deepLink = `myapp://signup?code=${dsp_code}&invitationId=${newInvitation._id}`;
-    const clickableLink = `<a href="${deepLink}" style="color: blue; text-decoration: underline;">Create my account</a>`;
+        // ✅ 3. Configurer Brevo API
+        var defaultClient = SibApiV3Sdk.ApiClient.instance;
+        var apiKey = defaultClient.authentications['api-key'];
+        apiKey.apiKey = process.env.BREVO_API_KEY;
 
-    // ✅ 4. Configurer Brevo API
-    var defaultClient = SibApiV3Sdk.ApiClient.instance;
-    var apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = process.env.BREVO_API_KEY;
+        if (!process.env.BREVO_API_KEY) {
+            return res.status(500).json({ message: "Server error: Missing email API key." });
+        }
 
-    // ✅ 5. Créer l'email de bienvenue
-    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        // ✅ 4. Préparer l'email
+        const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-    sendSmtpEmail.sender = {
-      "name": "DMP Management Team",
-      "email": "dspmanagementpartenaire@gmail.com"
-    };
-    sendSmtpEmail.to = [{ "email": email }];
-    sendSmtpEmail.subject = "Welcome to DMP Management - Create Your Account";
+        sendSmtpEmail.sender = {
+            "name": "OPEX LOGISTICS TEAM",
+            "email": "opexlogisticsteam@gmail.com"
+        };
+        sendSmtpEmail.to = [{ "email": email }];
+        sendSmtpEmail.subject = "Welcome to OPEX LOGISTICS - Create Your Account";
 
-    sendSmtpEmail.htmlContent = `
-      <h3>Welcome to DMP Management!</h3>
-      <p>We are excited to have you on board.</p>
-      <p>Before creating your account, please download our app if you haven't already:</p>
-      <ul>
-        <li><a href="https://play.google.com/store/apps/details?id=com.myapp">Download for Android</a></li>
-        <li><a href="https://apps.apple.com/us/app/myapp/idXXXXXXXXX">Download for iOS</a></li>
-      </ul>
-      <p>Once the app is installed, click the link below to complete your registration:</p>
-      <p>${clickableLink}</p>
-      <hr>
-      <p>If you have any questions, feel free to contact us.</p>
-      <p>This email was sent automatically from the DSP Management system.</p>
+        sendSmtpEmail.htmlContent = `
+        <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: auto; background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+            
+            <h2 style="color: #333; text-align: center; font-size: 22px;">Welcome to OPEX LOGISTICS</h2>
+            
+            <p style="font-size: 16px; color: #555; line-height: 1.5;">
+                Hello, <br><br>
+                You have been invited to join <strong>OPEX LOGISTICS</strong>. Please follow these steps to complete your registration:
+            </p>
+    
+            <p style="font-size: 16px; color: #555; line-height: 1.5;"><strong>Step 1:</strong> Download the OPEX LOGISTICS app:</p>
+    
+            <div style="display: flex; justify-content: center; margin: 15px 0;">
+                <a href="https://play.google.com/store/apps/details?id=com.myapp" 
+                style="background: #007bff; color: #ffffff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; margin-right: 20px; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
+                📱 Android</a>
+    
+                <a href="https://apps.apple.com/us/app/myapp/idXXXXXXXXX" 
+                style="background: #007bff; color: #ffffff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
+                🍏 iOS</a>
+            </div>
+
+            <p style="font-size: 16px; color: #555; line-height: 1.5;"><strong>Step 2:</strong> <span style="color: red; font-weight: bold;">Do not open the app</span> after downloading.</p>
+            <p style="font-size: 16px; color: #555; line-height: 1.5;"><strong>Step 3:</strong> Click the button below to create your account.</p>
+    
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="${deepLink}" 
+                style="background: #28a745; color: #ffffff; padding: 14px 24px; border-radius: 5px; text-decoration: none; font-size: 16px; font-weight: bold; display: inline-block; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
+                  Create My Account</a>
+            </div>
+    
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+    
+            <p style="font-size: 14px; color: #777; text-align: center;">
+                If you have any questions, feel free to contact our support team. <br>
+                This email was sent automatically from <strong>OPEX LOGISTICS</strong>.
+            </p>
+    
+        </div>
     `;
 
-    // ✅ 6. Envoyer l'email
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
+        // ✅ 5. Envoyer l'email
+        try {
+            await apiInstance.sendTransacEmail(sendSmtpEmail);
+            res.status(200).json({ message: 'Account creation email sent successfully and invitation saved' });
+        } catch (emailError) {
+            await Invitation.findByIdAndDelete(newInvitation._id);
+            return res.status(500).json({ message: 'Error sending the email, invitation removed', error: emailError });
+        }
 
-    res.status(200).json({ message: 'Account creation email sent successfully' });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Error sending the email', error });
-  }
+    } catch (error) {
+        res.status(500).json({ message: 'Error processing the request', error });
+    }
 };
+
+
 
 
 // ✅ Vérifie si une invitation est fonctionnelle
@@ -79,18 +112,18 @@ exports.checkInvitationStatus = async (req, res) => {
 
         // 🔥 Si l'invitation n'existe pas ou n'est pas fonctionnelle
         if (!invitation || !invitation.fonctionnel) {
-            return res.status(200).json({ 
-                message: "Invitation is no longer functional or not found.", 
-                status: false 
+            return res.status(200).json({
+                message: "Invitation is no longer functional or not found.",
+                status: false
             });
         }
 
         // ✅ Si l'invitation est trouvée et fonctionnelle
-        return res.status(200).json({ 
-            message: "Invitation is still functional.", 
-            status: true 
+        return res.status(200).json({
+            message: "Invitation is still functional.",
+            status: true
         });
-        
+
     } catch (error) {
         res.status(500).json({ message: "Error checking invitation status.", error, status: false });
     }
@@ -149,7 +182,7 @@ exports.getAllInvitations = async (req, res) => {
 // ✅ Supprime une invitation par son ID
 exports.deleteInvitation = async (req, res) => {
     try {
-        const { invitationId } = req.params;        
+        const { invitationId } = req.params;
         const Invitation = req.connection.models.Invitation; // Modèle dynamique
 
         // ✅ Vérification de l'ID de l'invitation

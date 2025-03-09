@@ -16,7 +16,7 @@ exports.addContact = async (req, res) => {
     const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-    sendSmtpEmail.sender = { "name": "DMP Management team", "email": "dspmanagementpartenaire@gmail.com" };
+    sendSmtpEmail.sender = { "name": "OPEX LOGISTICS TEAM", "email": "opexlogisticsteam@gmail.com" };
     sendSmtpEmail.to = [{ "email": "habchi.ouafid@gmail.com", "name": "Ouafid Habchi" }];
     sendSmtpEmail.subject = `Nouveau message reçu : ${newContact.subject}`;
 
@@ -29,13 +29,12 @@ exports.addContact = async (req, res) => {
       <h4>Message :</h4>
       <p>${newContact.message}</p>
       <hr>
-      <p>Cet email a été envoyé automatiquement depuis le système de DSP Management.</p>
+      <p>Cet email a été envoyé automatiquement depuis le système de OPEX LOGISTICS .</p>
     `;
     // Envoyer l'email via l'API Brevo
     await apiInstance.sendTransacEmail(sendSmtpEmail);
     res.status(200).json({ message: 'Contact ajouté avec succès et email envoyé', contact: newContact });
   } catch (error) {
-    console.error("❌ Erreur lors de l'ajout ou de l'envoi de l'email :", error);
     res.status(500).json({ message: 'Erreur lors de l\'ajout du contact ou de l\'envoi de l\'email', error });
   }
 };

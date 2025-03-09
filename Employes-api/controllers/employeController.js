@@ -75,11 +75,19 @@ exports.loginemploye = async (req, res) => {
             throw new Error('Le modèle "Employee" n\'est pas enregistré dans la connexion.');
         }
 
-        const { email, password } = req.body;
+        const { email, password, expoPushToken } = req.body; // 🔹 Récupère expoPushToken
         const existingEmploye = await Employe.findOne({ email });
 
         if (!existingEmploye || existingEmploye.password !== password) {
             return res.status(500).json({ message: 'Email ou mot de passe incorrect.' });
+        }
+
+        // 🔹 Mise à jour de l'expoPushToken seulement si fourni
+        if (expoPushToken) {
+            await Employe.updateOne(
+                { _id: existingEmploye._id }, 
+                { $set: { expoPushToken } }
+            );
         }
 
         res.status(200).json(existingEmploye);
@@ -88,6 +96,7 @@ exports.loginemploye = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la connexion', error: error.message });
     }
 };
+
 
 
 
