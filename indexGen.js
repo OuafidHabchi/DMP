@@ -1,10 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const http = require('https'); // Importer http pour créer le serveur
+const http = require('http'); // Importer http pour créer le serveur
 const socketIo = require('socket.io'); // Importer Socket.IO
 const path = require('path');
 require('dotenv').config();
-
 // Initialisation de l'application
 const app = express();
 // Création du serveur HTTP avec Express
@@ -12,14 +11,6 @@ const server = http.createServer(app);
 // Middleware global
 app.use(cors());
 app.use(express.json());
-
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*"); // Autorise toutes les origines (pas sécurisé en production)
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
-
 // Importer le middleware
 const logAccess = require('./DSPListe-api/midlewares/logAccess');
 // Appliquer le middleware globalement
@@ -42,7 +33,7 @@ app.use('/uploads-wornings', express.static(path.join(__dirname, 'Warnings-api/u
 app.use('/uploads-timecard', express.static(path.join(__dirname, 'TimeCard-api/timecarduploads')));
 
 const connectToDSP = require('./DSPListe-api/config/database');
-const { loadInitialDatabaseMap } = require('./DSPListe-api/services/dspService');
+const {loadInitialDatabaseMap } = require('./DSPListe-api/services/dspService');
 
 // Connexion à MongoDB et chargement initial de la liste
 const displayDatabaseMap = async () => {
