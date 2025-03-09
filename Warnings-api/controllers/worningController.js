@@ -27,16 +27,17 @@ exports.getWorningById = async (req, res) => {
         const { id } = req.params;
         const Worning = req.connection.models.Worning;
         const worning = await Worning.findById(id);
+
         if (!worning) {
             return res.status(500).send({ error: "Warning not found." });
         }
 
-        worning.photo = worning.photo ? `${req.protocol}://${req.get('host')}/${worning.photo}` : null;
         res.status(200).json(worning);
     } catch (error) {
         res.status(500).send({ error: "Error while fetching warning details.", details: error.message });
     }
 };
+
 
 // Ajouter un nouveau warning
 exports.createWorning = async (req, res) => {
