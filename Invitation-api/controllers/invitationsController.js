@@ -25,7 +25,7 @@ exports.addEmployeFromManager = async (req, res) => {
         var apiKey = defaultClient.authentications['api-key'];
         apiKey.apiKey = process.env.BREVO_API_KEY;
 
-        if (!process.env.BREVO_API_KEY) {
+        if (!process.env.BREVO_API_KEY) {            
             return res.status(500).json({ message: "Server error: Missing email API key." });
         }
 

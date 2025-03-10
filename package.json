@@ -3,6 +3,7 @@
     "start": "node indexGen.js"
   },
   "dependencies": {
+    "bcrypt": "^5.1.1",
     "csv-parser": "^3.1.0",
     "dotenv": "^16.4.7",
     "expo-server-sdk": "^3.11.0",

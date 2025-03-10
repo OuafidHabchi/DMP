@@ -1,3 +1,6 @@
+const bcrypt = require('bcrypt');
+const saltRounds = 10; // Niveau de complexité du hachage
+
 const { sendPushNotification } = require('../../utils/notifications');
 
 // Inscription d'un employé
@@ -13,13 +16,16 @@ exports.registeremploye = async (req, res) => {
             return res.status(500).json({ message: 'Employé avec cet email existe déjà.' });
         }
 
-        // Création du nouvel employé
+        // 🔐 Hachage du mot de passe avant stockage
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Création du nouvel employé avec le mot de passe haché
         const newEmploye = new Employe({
             name,
             familyName,
             tel,
             email,
-            password,
+            password: hashedPassword, // 🔥 Stocke le hash au lieu du mot de passe en clair
             role,
             language,
             scoreCard,
@@ -40,14 +46,12 @@ exports.registeremploye = async (req, res) => {
         const tokens = managers.map(manager => manager.expoPushToken);
 
         // 🔥 Envoyer la notification à tous les managers
-        // 🔥 Envoyer la notification à tous les managers
         if (tokens.length > 0) {
             const message = `New employee account created: ${name} ${familyName}.`;
             for (const token of tokens) {
                 await sendPushNotification(token, message);
             }
         }
-
 
         res.status(200).json(newEmploye);
     } catch (error) {
@@ -56,9 +60,6 @@ exports.registeremploye = async (req, res) => {
 };
 
 
-
-
-// Exemple pour `loginemploye` :
 exports.loginemploye = async (req, res) => {
     try {
         if (!req.connection) {
@@ -77,14 +78,21 @@ exports.loginemploye = async (req, res) => {
         const { email, password, expoPushToken } = req.body; // 🔹 Récupère expoPushToken
         const existingEmploye = await Employe.findOne({ email });
 
-        if (!existingEmploye || existingEmploye.password !== password) {
+        // 🔴 Vérification de l'existence de l'employé
+        if (!existingEmploye) {
+            return res.status(500).json({ message: 'Email ou mot de passe incorrect.' });
+        }
+
+        // 🔐 Comparaison du mot de passe haché
+        const isMatch = await bcrypt.compare(password, existingEmploye.password);
+        if (!isMatch) {
             return res.status(500).json({ message: 'Email ou mot de passe incorrect.' });
         }
 
         // 🔹 Mise à jour de l'expoPushToken seulement si fourni
         if (expoPushToken) {
             await Employe.updateOne(
-                { _id: existingEmploye._id }, 
+                { _id: existingEmploye._id },
                 { $set: { expoPushToken } }
             );
         }
@@ -94,6 +102,7 @@ exports.loginemploye = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la connexion', error: error.message });
     }
 };
+
 
 
 
@@ -127,6 +136,37 @@ exports.deleteEmploye = async (req, res) => {
         res.status(200).json({ message: 'Employé supprimé avec succès.' });
     } catch (error) {
         res.status(500).json({ message: 'Erreur lors de la suppression', error });
+    }
+};
+
+
+exports.updateEmployeePassword = async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const Employe = req.connection.models.Employee; // Modèle injecté dynamiquement
+
+        // Vérifier si l'utilisateur existe
+        const employe = await Employe.findById(req.params.id);
+        if (!employe) {
+            return res.status(404).json({ message: 'Employé introuvable.' });
+        }
+
+        // Vérifier si l'ancien mot de passe est correct
+        const isMatch = await bcrypt.compare(oldPassword, employe.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Ancien mot de passe incorrect.' });
+        }
+
+        // Hacher le nouveau mot de passe
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // Mettre à jour le mot de passe
+        employe.password = hashedPassword;
+        await employe.save();
+
+        res.status(200).json({ message: 'Mot de passe mis à jour avec succès.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur lors de la mise à jour du mot de passe.', error: error.message });
     }
 };
 
