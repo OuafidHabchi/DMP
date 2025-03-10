@@ -1,7 +1,6 @@
 const express = require('express');
 const employeController = require('../controllers/employeController');
 const router = express.Router();
-const logger = require('../../utils/logger');
 const dbMiddleware = require('../../utils/middleware'); // Import du middleware
 
 

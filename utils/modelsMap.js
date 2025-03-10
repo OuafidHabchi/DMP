@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const logger = require('./logger');
 
 // Importation des modèles
 const Clothes = require('../clothes-api/models/Clothes');
@@ -76,7 +75,7 @@ const validateModelsMap = () => {
 try {
   validateModelsMap();
 } catch (error) {
-  logger.error('Erreur lors de la validation des modèles :', error.message);
+  console.log('Erreur lors de la validation des modèles :', error.message);
   process.exit(1); // Arrête l'application si les modèles sont invalides
 }
 

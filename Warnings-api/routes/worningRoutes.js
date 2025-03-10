@@ -1,7 +1,6 @@
 const express = require("express");
 const multer = require("multer");
 const worningController = require("../controllers/worningController");
-const logger = require('../../utils/logger');
 const dbMiddlewareWorning = require('../midleware/dbMiddlewareWorning');
 const path = require('path');
 const fs = require('fs');

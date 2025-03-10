@@ -2,7 +2,6 @@
 const express = require('express');
 const dbMiddleware = require('../../utils/middleware');
 const quizController = require('../controllers/quizController');
-const logger = require('../../utils/logger');
 const router = express.Router();
 
 router.use((req, res, next) => {

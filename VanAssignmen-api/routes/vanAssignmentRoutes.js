@@ -1,7 +1,6 @@
 const express = require('express');
 const dbMiddleware = require('../../utils/middleware');
 const vanAssignmentController = require('../controllers/vanAssignmentController');
-const logger = require('../../utils/logger');
 
 const router = express.Router();
 

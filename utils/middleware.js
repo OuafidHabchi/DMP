@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const getDatabaseConnection = require('./database');
 const getDynamicModel = require('./dynamicModel');
 const modelsMap = require('./modelsMap');
-const logger = require('./logger');
 
 const dbMiddleware = async (req, res, next) => {
   const dsp_code = req.body.dsp_code || req.query.dsp_code || req.params.dsp_code;

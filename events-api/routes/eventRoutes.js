@@ -1,12 +1,11 @@
 const express = require('express');
 const dbMiddleware = require('../../utils/middleware');
 const eventController = require('../controllers/eventController');
-const logger = require('../../utils/logger');
 const router = express.Router();
 
 // Middleware pour spécifier le modèle nécessaire
 router.use((req, res, next) => {
-  req.requiredModels = ['Event'];
+  req.requiredModels = ['Event','Employee'];
   next();
 });
 

@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const logger = require('./logger');
 
 /**
  * Récupère ou crée un modèle dynamique pour la base de données.
@@ -9,7 +8,6 @@ const logger = require('./logger');
  * @returns {mongoose.Model} - Le modèle dynamique
  */
 const getDynamicModel = (connection, modelName, schema) => {
-  logger.debug(`Demande de modèle : ${modelName}`);
 
   // Validation des paramètres
   if (!connection || connection.constructor.name !== 'NativeConnection') {

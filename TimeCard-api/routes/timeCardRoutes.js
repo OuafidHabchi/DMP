@@ -1,7 +1,6 @@
 const express = require('express');
 const dbMiddleware = require('../../utils/middleware');
 const timeCardController = require('../controllers/timeCardController');
-const logger = require('../../utils/logger');
 const upload = require("../Middleware/fileUploadMiddleware");
 const router = express.Router();
 

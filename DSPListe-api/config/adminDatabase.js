@@ -1,6 +1,5 @@
 // 📁 config/adminDatabase.js
 const mongoose = require('mongoose');
-const logger = require('../../utils/logger'); // Change le chemin selon ton projet
 
 // Importation depuis le service DSPliste
 const { getDatabaseMap } = require('../services/dspService');
@@ -43,17 +42,17 @@ const getAdminDatabaseConnection = async (dsp_code) => {
 
     // Connexion réussie
     connection.on('connected', () => {
-      logger.info(`✅ Connexion ADMIN établie à la base : ${dbName}`);
+      console.log(`✅ Connexion ADMIN établie à la base : ${dbName}`);
     });
 
     // Déconnexion automatique
     connection.on('disconnected', () => {
-      logger.warn(`⚠️ Déconnexion automatique de la base (ADMIN) : ${dbName}`);
+      console.log(`⚠️ Déconnexion automatique de la base (ADMIN) : ${dbName}`);
     });
 
     // Erreur de connexion
     connection.on('error', (err) => {
-      logger.error(`❌ Erreur de connexion (ADMIN) (${dbName}) :`, err.message);
+      console.log(`❌ Erreur de connexion (ADMIN) (${dbName}) :`, err.message);
       delete adminConnections[dbName];
     });
 
@@ -61,7 +60,7 @@ const getAdminDatabaseConnection = async (dsp_code) => {
     setTimeout(() => {
       if (connection.readyState === 1) {
         connection.close().then(() => {
-          logger.debug(`🛑 Connexion ADMIN fermée pour inactivité (${dbName}).`);
+          console.log(`🛑 Connexion ADMIN fermée pour inactivité (${dbName}).`);
         });
         delete adminConnections[dbName];
       }
@@ -75,7 +74,7 @@ const getAdminDatabaseConnection = async (dsp_code) => {
 
     return connection;
   } catch (error) {
-    logger.error(`Erreur lors de la connexion ADMIN à ${dbName} :`, error.message);
+    console.log(`Erreur lors de la connexion ADMIN à ${dbName} :`, error.message);
     throw new Error(`Connexion ADMIN à ${dbName} échouée : ${error.message}`);
   }
 };

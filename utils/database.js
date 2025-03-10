@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const logger = require('./logger');
 
 // Importation depuis le service DSPliste
 const { getDatabaseMap } = require('../DSPListe-api/services/dspService');
@@ -49,17 +48,17 @@ const getDatabaseConnection = async (dsp_code) => {
 
     // Connexion réussie
     connection.on('connected', () => {
-      logger.debug(`✅ Connexion établie à la base : ${dbName}`);
+      console.log(`✅ Connexion établie à la base : ${dbName}`);
     });
 
     // Déconnexion automatique
     connection.on('disconnected', () => {
-      logger.warn(`⚠️ Déconnexion automatique de la base : ${dbName}`);
+      console.log(`⚠️ Déconnexion automatique de la base : ${dbName}`);
     });
 
     // Erreur de connexion
     connection.on('error', (err) => {
-      logger.error(`❌ Erreur de connexion (${dbName}) :`, err.message);
+      console.log(`❌ Erreur de connexion (${dbName}) :`, err.message);
       delete connections[dbName];
     });
 
@@ -67,7 +66,7 @@ const getDatabaseConnection = async (dsp_code) => {
     setTimeout(() => {
       if (connection.readyState === 1) {
         connection.close().then(() => {
-          logger.debug(`🛑 Connexion fermée pour inactivité (${dbName}).`);
+          console.log(`🛑 Connexion fermée pour inactivité (${dbName}).`);
         });
         delete connections[dbName];
       }
@@ -81,24 +80,24 @@ const getDatabaseConnection = async (dsp_code) => {
 
     return connection;
   } catch (error) {
-    logger.error(`Erreur lors de la connexion à ${dbName} :`, error.message);
+    console.log(`Erreur lors de la connexion à ${dbName} :`, error.message);
     throw new Error(`Connexion à ${dbName} échouée : ${error.message}`);
   }
 };
 
 // Nettoyage des connexions à la fin
 process.on('SIGINT', async () => {
-  logger.debug('Fermeture des connexions MongoDB...');
+  console.log('Fermeture des connexions MongoDB...');
   const closePromises = Object.values(connections).map(async (conn) => {
     try {
       await conn.close();
-      logger.debug(`✅ Connexion fermée proprement pour la base : ${conn.name}`);
+      console.log(`✅ Connexion fermée proprement pour la base : ${conn.name}`);
     } catch (err) {
-      logger.error(`❌ Erreur lors de la fermeture de la connexion : ${conn.name}`, err.message);
+      console.log(`❌ Erreur lors de la fermeture de la connexion : ${conn.name}`, err.message);
     }
   });
   await Promise.all(closePromises);
-  logger.debug('Toutes les connexions MongoDB ont été fermées.');
+  console.log('Toutes les connexions MongoDB ont été fermées.');
   process.exit(0);
 });
 

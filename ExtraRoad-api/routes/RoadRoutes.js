@@ -1,7 +1,6 @@
 const express = require('express');
 const dbMiddleware = require('../../utils/middleware');
 const RoadController = require('../controllers/RoadController');
-const logger = require('../../utils/logger');
 const router = express.Router();
 
 // Middleware pour spécifier le modèle nécessaire

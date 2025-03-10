@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const getDatabaseConnection = require('../../utils/database'); // Importez votre module global
-const logger = require('../../utils/logger');
+
 
 // Définition des modèles pour EquipmentUpdate
 const equipmentUpdateSchema = new mongoose.Schema({

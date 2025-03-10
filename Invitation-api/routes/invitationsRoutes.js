@@ -1,7 +1,6 @@
 const express = require('express');
 const invitationsController = require('../controllers/invitationsController');
 const router = express.Router();
-const logger = require('../../utils/logger');
 const dbMiddleware = require('../../utils/middleware'); // Import du middleware
 
 // Middleware pour spécifier le modèle nécessaire

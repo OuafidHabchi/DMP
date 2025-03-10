@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const contactController = require('../controllers/contactController');
-const logger = require('../../utils/logger');
 const dbMiddleware = require('../../utils/middleware'); // Import du middleware
 
 

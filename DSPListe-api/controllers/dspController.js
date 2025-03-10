@@ -114,7 +114,6 @@ exports.getDSPById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Erreur lors de la récupération des détails:', error.message);
     res.status(500).json({ error: error.message });
   }
 };

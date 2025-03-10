@@ -3,7 +3,6 @@ const multer = require('multer');
 const path = require('path');
 const dbMiddleware = require('../../utils/middleware');
 const dailyNoteController = require('../controllers/dailyNoteController');
-const logger = require('../../utils/logger');
 
 const router = express.Router();
 

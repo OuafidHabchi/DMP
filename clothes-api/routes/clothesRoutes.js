@@ -2,7 +2,6 @@
 const express = require('express');
 const dbMiddleware = require('../../utils/middleware'); // Import du middleware
 const clothesController = require('../controllers/clothesController');
-const logger = require('../../utils/logger');
 const router = express.Router();
 
 // Middleware pour spécifier le modèle nécessaire

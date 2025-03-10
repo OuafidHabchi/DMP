@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const getDatabaseConnection = require('../../utils/database');
 const worningSchema = require('../models/worning');
-const logger = require('../../utils/logger');
 
 // Middleware personnalisé pour la gestion des warnings
 const dbMiddlewareWorning = async (req, res, next) => {

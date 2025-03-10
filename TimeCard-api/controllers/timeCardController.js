@@ -45,7 +45,7 @@ exports.getTimeCards = async (req, res) => {
   }
 };
 
-// Lire une fiche de temps par ID
+// Lire une fiche de temps par ID  
 exports.getTimeCardById = async (req, res) => {
   try {
     const TimeCard = req.connection.models.TimeCard; // Modèle dynamique
@@ -121,13 +121,8 @@ exports.updateOrCreateTimeCard = async (req, res) => {
     const { employeeId, day } = req.params;
     const updateFields = req.body;
     const TimeCard = req.connection.models.TimeCard; // Modèle dynamique
-    console.log(employeeId);
-    console.log(day);
-
-
     // Récupérer la timeCard existante pour vérifier si les champs n'ont pas changé
     let timeCard = await TimeCard.findOne({ employeeId, day });
-
     // Si la timeCard existe déjà, on met à jour les champs non définis
     if (timeCard) {
       // On garde les valeurs existantes et on met à jour celles qui sont définies
@@ -154,7 +149,6 @@ exports.updateOrCreateTimeCard = async (req, res) => {
       await timeCard.save();
     }
 
-    // console.log("Time card updated or created:", timeCard);
     res.json(timeCard);
   } catch (error) {
     res.status(500).json({ message: "Error updating or creating time card", error });

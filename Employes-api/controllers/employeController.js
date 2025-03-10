@@ -1,5 +1,4 @@
 const { sendPushNotification } = require('../../utils/notifications');
-const logger = require('../../utils/logger');
 
 // Inscription d'un employé
 exports.registeremploye = async (req, res) => {
@@ -92,7 +91,6 @@ exports.loginemploye = async (req, res) => {
 
         res.status(200).json(existingEmploye);
     } catch (error) {
-        logger.error(`Erreur dans loginemploye : ${error.message}`);
         res.status(500).json({ message: 'Erreur lors de la connexion', error: error.message });
     }
 };
