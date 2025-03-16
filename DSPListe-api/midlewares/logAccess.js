@@ -44,13 +44,18 @@ const getLogModel = async (dspCode) => {
 
 const logAccess = async (req, res, next) => {
     const dspCode = req.query.dsp_code || 'unknown'; // Extraction du dspCode
+    //  Si le dspCode est 'unknown', on ne sauvegarde pas le log
+    if (dspCode === 'unknown' || dspCode === undefined) {
+        return next(); // Passer à l'étape suivante sans enregistrer le log
+    }
+
     const Log = await getLogModel(dspCode); // Récupération du modèle spécifique au DSP
     const startTime = Date.now();
 
     // Après la réponse, on enregistre le log
     res.on('finish', () => {
         const responseTime = Date.now() - startTime;
-        
+
         const log = new Log({
             dspCode,
             url: req.originalUrl,

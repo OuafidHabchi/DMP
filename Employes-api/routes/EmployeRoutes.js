@@ -25,4 +25,6 @@ router.get('/', employeController.getAllEmployees);
 router.delete('/profile/:id', employeController.deleteEmploye);
 router.post('/by-ids', employeController.getEmployeesByIds);
 router.put('/update-password/:id', employeController.updateEmployeePassword);
+router.post('/registerManager/create', employeController.registerManger);
+
 module.exports = router;

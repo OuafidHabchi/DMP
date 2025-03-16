@@ -60,6 +60,46 @@ exports.registeremploye = async (req, res) => {
 };
 
 
+// Inscription d'un employé
+exports.registerManger = async (req, res) => {
+    console.log("hello");
+    
+    try {
+        const { name, familyName, tel, email, password, role, language, scoreCard, expoPushToken, dsp_code } = req.body;
+        const Employe = req.connection.models.Employee; // Modèle injecté dynamiquement
+
+        // Vérification si l'employé existe déjà
+        const existingEmploye = await Employe.findOne({ email });
+        if (existingEmploye) {
+            return res.status(500).json({ message: 'Employé avec cet email existe déjà.' });
+        }
+
+        // 🔐 Hachage du mot de passe avant stockage
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Création du nouvel employé avec le mot de passe haché
+        const newEmploye = new Employe({
+            name,
+            familyName,
+            tel,
+            email,
+            password: hashedPassword, // 🔥 Stocke le hash au lieu du mot de passe en clair
+            role,
+            language,
+            scoreCard,
+            Transporter_ID: '',
+            expoPushToken,
+            dsp_code,
+        });
+
+        await newEmploye.save();
+        res.status(200).json(newEmploye);
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur lors de l\'inscription de l\'employé', error });
+    }
+};
+
+
 exports.loginemploye = async (req, res) => {
     try {
         if (!req.connection) {

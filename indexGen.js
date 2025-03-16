@@ -93,6 +93,9 @@ const prediction = require('./Prediction-api/Prediction')
 const dspRoutes = require('./DSPListe-api/routes/dspRoutes');
 const contactRoutes = require('./Contacts-api/routes/contactRoutes');
 const invitationRoutes = require('./Invitation-api/routes/invitationsRoutes');
+const RequestAccessRoutes = require('./requestAcces-api/routes/requestAccessRoutes');
+
+
 
 
 
@@ -128,6 +131,7 @@ app.use('/api/prediction', prediction);
 app.use('/api/dspliste', dspRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/RequestAccessRoutes', RequestAccessRoutes);
 
 
 
