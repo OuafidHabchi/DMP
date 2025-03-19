@@ -109,7 +109,7 @@ exports.updateAssignmentsByDateAndEmployee = async (req, res) => {
         if (updatedAssignment.modifiedCount > 0) {
             res.status(200).json(updatedAssignment);
         } else {
-            res.status(500).json({ message: "No assignment found for the specified date and employee" });
+            res.status(500).json({ message: "No assignments found for the specified date and employee" });
         }
     } catch (error) {
         console.error('Error updating assignment for the specified date and employee', error);
