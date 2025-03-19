@@ -57,7 +57,7 @@ exports.addEmployeFromManager = async (req, res) => {
                 style="background: #007bff; color: #ffffff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; margin-right: 20px; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
                 📱 Android</a>
     
-                <a href="https://apps.apple.com/us/app/myapp/idXXXXXXXXX" 
+                <a href="https://apps.apple.com/ca/app/opex-logistics/id6743144792" 
                 style="background: #007bff; color: #ffffff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
                 🍏 iOS</a>
             </div>
