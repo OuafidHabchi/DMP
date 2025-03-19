@@ -31,7 +31,7 @@ router.delete('/delete/:employeeId/:date', vanAssignmentController.deleteVanAssi
 // Route pour obtenir les assignations pour une date donnée
 router.get('/date/:date', vanAssignmentController.getAssignmentsByDate);
 
-// Route pour mettre à jour une affectation de véhicule by jour
-router.put('/assignments/:date/:employeeId', vanAssignmentController.updateAssignmentsByDateAndEmployee);
+router.post('/process-assignments', vanAssignmentController.processVanAssignments);
+
 
 module.exports = router;
