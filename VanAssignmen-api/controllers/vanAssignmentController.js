@@ -94,8 +94,6 @@ exports.getAssignmentsByDate = async (req, res) => {
     }
 };
 
-<<<<<<< HEAD
-=======
 exports.updateAssignmentsByDateAndEmployee = async (req, res) => {
     try {
         const VanAssignment = req.connection.models.VanAssignment; // Modèle dynamique
@@ -118,7 +116,6 @@ exports.updateAssignmentsByDateAndEmployee = async (req, res) => {
         res.status(500).json({ error: 'Error updating assignment' });
     }
 };
->>>>>>> 03c590a54f80b54048df63c89edaa8882dea9e0c
 
 
 exports.processVanAssignments = async (req, res) => {
@@ -142,7 +139,7 @@ exports.processVanAssignments = async (req, res) => {
             // Vérifier si la van est déjà assignée à un autre employé ce jour-là
             const vanAssignment = existingAssignments.find(a => a.vanId === vanId);
             if (vanAssignment) {
-                // Supprimer l'assignation existante pour cette van
+                // Supprimer l'assignation existante pour cette
                 assignmentsToDelete.push(vanAssignment._id);
             }
 
