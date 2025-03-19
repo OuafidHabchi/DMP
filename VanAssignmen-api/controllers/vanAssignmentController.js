@@ -94,6 +94,31 @@ exports.getAssignmentsByDate = async (req, res) => {
     }
 };
 
+<<<<<<< HEAD
+=======
+exports.updateAssignmentsByDateAndEmployee = async (req, res) => {
+    try {
+        const VanAssignment = req.connection.models.VanAssignment; // Modèle dynamique
+        const { date, employeeId } = req.params;
+        const updateData = req.body; // Contains the fields to update
+        // console.log("update"+date, employeeId);
+        // Find and update the assignment for the specified date and employee ID
+        const updatedAssignment = await VanAssignment.updateOne(
+            { date, employeeId },
+            { $set: updateData },
+            { new: true, returnDocument: "after" }
+        );
+        if (updatedAssignment.modifiedCount > 0) {
+            res.status(200).json(updatedAssignment);
+        } else {
+            res.status(500).json({ message: "No assignments found for the specified date and employee" });
+        }
+    } catch (error) {
+        console.error('Error updating assignment for the specified date and employee', error);
+        res.status(500).json({ error: 'Error updating assignment' });
+    }
+};
+>>>>>>> 03c590a54f80b54048df63c89edaa8882dea9e0c
 
 
 exports.processVanAssignments = async (req, res) => {
