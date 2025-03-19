@@ -4,7 +4,7 @@
 exports.createVanAssignment = async (req, res) => {
     try {
         const VanAssignment = req.connection.models.VanAssignment; // Modèle dynamique
-        const data = req.body;
+        const { data } = req.body;
         // Vérifie si data est un tableau
         if (Array.isArray(data)) {
             // Insère plusieurs documents
@@ -62,9 +62,9 @@ exports.deleteVanAssignment = async (req, res) => {
         const { employeeId, date } = req.params; // Récupérer les paramètres employeeId et date
         const VanAssignment = req.connection.models.VanAssignment; // Modèle dynamique
         // Rechercher et supprimer l'affectation correspondant à l'employé et à la date
-        const assignment = await VanAssignment.findOneAndDelete({ 
-            employeeId, 
-            date 
+        const assignment = await VanAssignment.findOneAndDelete({
+            employeeId,
+            date
         });
 
         // Vérifier si l'assignation existe
@@ -84,7 +84,7 @@ exports.deleteVanAssignment = async (req, res) => {
 exports.getAssignmentsByDate = async (req, res) => {
     try {
         const VanAssignment = req.connection.models.VanAssignment; // Modèle dynamique
-        const { date } = req.params;          
+        const { date } = req.params;
         // Trouver toutes les assignations pour la date donnée
         const assignments = await VanAssignment.find({ date });
         res.status(200).json(assignments);
@@ -117,3 +117,51 @@ exports.updateAssignmentsByDateAndEmployee = async (req, res) => {
     }
 };
 
+
+exports.processVanAssignments = async (req, res) => {
+    try {
+        const VanAssignment = req.connection.models.VanAssignment;
+        const { assignments, date, dsp_code } = req.body;
+        // Récupérer toutes les affectations existantes pour cette date
+        const existingAssignments = await VanAssignment.find({ date });
+        // Stocker les IDs des assignations à supprimer
+        const assignmentsToDelete = [];
+        const assignmentsToInsert = [];
+
+        for (const { employeeId, vanId, statusId } of assignments) {
+            // Vérifier si l'employé est déjà assigné à une autre van ce jour-là
+            const employeeAssignment = existingAssignments.find(a => a.employeeId === employeeId);
+            if (employeeAssignment) {
+                // Supprimer l'assignation existante pour cet employé
+                assignmentsToDelete.push(employeeAssignment._id);
+            }
+
+            // Vérifier si la van est déjà assignée à un autre employé ce jour-là
+            const vanAssignment = existingAssignments.find(a => a.vanId === vanId);
+            if (vanAssignment) {
+                // Supprimer l'assignation existante pour cette
+                assignmentsToDelete.push(vanAssignment._id);
+            }
+
+            // Ajouter la nouvelle assignation
+            assignmentsToInsert.push({ employeeId, vanId, date, statusId, dsp_code });
+        }
+
+        // Supprimer les anciennes assignations obsolètes
+        if (assignmentsToDelete.length > 0) {
+            await VanAssignment.deleteMany({ _id: { $in: assignmentsToDelete } });
+        }
+
+        // Ajouter les nouvelles assignations
+        if (assignmentsToInsert.length > 0) {
+            await VanAssignment.insertMany(assignmentsToInsert);
+        }
+
+        // Récupérer à nouveau les assignations après les mises à jour
+        const updatedAssignments = await VanAssignment.find({ date, dsp_code });
+
+        res.status(200).json({ updatedAssignments: updatedAssignments });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to process assignments' });
+    }
+};
