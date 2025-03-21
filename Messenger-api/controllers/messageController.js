@@ -11,9 +11,9 @@ const validateConnection = (connection, modelName) => {
 // Déterminer le contenu du message
 const determineMessageContent = (file, content) => {
   if (file) {
-    if (file.mimetype.startsWith('video/')) return 'Vidéo partagée';
-    if (file.mimetype.startsWith('image/')) return 'Image partagée';
-    return 'Média partagé';
+    if (file.mimetype.startsWith('video/')) return '';
+    if (file.mimetype.startsWith('image/')) return '';
+    return '';
   }
   return content || 'Média partagé';
 };
