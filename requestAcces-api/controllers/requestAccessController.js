@@ -3,8 +3,6 @@ const SibApiV3Sdk = require('sib-api-v3-sdk');
 
 // Créer une nouvelle demande d'accès
 exports.createRequestAccess = async (req, res) => {
-
-
   try {
     const {
       firstName,
@@ -17,13 +15,12 @@ exports.createRequestAccess = async (req, res) => {
       heardAboutUs,
       heardAboutUsDSP,
     } = req.body;
-
     const RequestAccess = req.connection.models.RequestAccess;
 
     if (!RequestAccess) {
+      console.error('Le modèle RequestAccess n\'est pas disponible dans la connexion actuelle.');
       return res.status(500).json({ error: 'Le modèle RequestAccess n\'est pas disponible dans la connexion actuelle.' });
     }
-
     // Créer une nouvelle instance de RequestAccess
     const newRequestAccess = new RequestAccess({
       firstName,
@@ -37,14 +34,12 @@ exports.createRequestAccess = async (req, res) => {
       heardAboutUsDSP: heardAboutUs === 'Referred by DSP' ? heardAboutUsDSP : null,
     });
 
-    // Sauvegarder dans la base de données
+  
     await newRequestAccess.save();
-
     // Configurer l'API client Brevo
     var defaultClient = SibApiV3Sdk.ApiClient.instance;
     var apiKey = defaultClient.authentications['api-key'];
     apiKey.apiKey = process.env.BREVO_API_KEY;
-
     // Créer l'email
     const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
@@ -71,16 +66,19 @@ exports.createRequestAccess = async (req, res) => {
     ${heardAboutUsDSP ? `<p><strong>DSP référent :</strong> ${heardAboutUsDSP}</p>` : ''}
     <hr>
     <p>Cet email a été envoyé automatiquement depuis le système de OPEX LOGISTICS.</p>
-`;
+    `;
 
-    // Envoyer l'email via l'API Brevo
     await apiInstance.sendTransacEmail(sendSmtpEmail);
+    // Réponse au client
     res.status(200).json({
       success: true,
       message: 'Request access created successfully!',
       data: newRequestAccess,
     });
   } catch (error) {
+    // Log de l'erreur
+    console.error('Erreur lors de la création de la demande d\'accès:', error);
+
     res.status(500).json({
       success: false,
       message: 'Error creating request access',
@@ -88,6 +86,7 @@ exports.createRequestAccess = async (req, res) => {
     });
   }
 };
+
 
 
 // Récupérer toutes les demandes d'accès

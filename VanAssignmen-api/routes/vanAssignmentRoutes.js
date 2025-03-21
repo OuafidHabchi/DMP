@@ -6,7 +6,15 @@ const router = express.Router();
 
 // Middleware pour spécifier le modèle nécessaire
 router.use((req, res, next) => {
-  req.requiredModels = ['VanAssignment'];
+  req.requiredModels = [
+    'VanAssignment',
+    'Vehicle',
+    'ReportIssues',
+    'Status',
+    'Shift',
+    'Employee',
+    'Disponibilite'
+  ];
   next();
 });
 
@@ -32,6 +40,8 @@ router.delete('/delete/:employeeId/:date', vanAssignmentController.deleteVanAssi
 router.get('/date/:date', vanAssignmentController.getAssignmentsByDate);
 
 router.post('/process-assignments', vanAssignmentController.processVanAssignments);
+
+
 
 
 module.exports = router;

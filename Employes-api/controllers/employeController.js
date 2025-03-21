@@ -13,7 +13,7 @@ exports.registeremploye = async (req, res) => {
         // Vérification si l'employé existe déjà
         const existingEmploye = await Employe.findOne({ email });
         if (existingEmploye) {
-            return res.status(500).json({ message: 'Employé avec cet email existe déjà.' });
+            return res.status(500).json({ message: 'A user with this email already exists.' });
         }
 
         // 🔐 Hachage du mot de passe avant stockage
@@ -61,9 +61,7 @@ exports.registeremploye = async (req, res) => {
 
 
 // Inscription d'un employé
-exports.registerManger = async (req, res) => {
-    console.log("hello");
-    
+exports.registerManger = async (req, res) => {    
     try {
         const { name, familyName, tel, email, password, role, language, scoreCard, expoPushToken, dsp_code } = req.body;
         const Employe = req.connection.models.Employee; // Modèle injecté dynamiquement
@@ -71,7 +69,7 @@ exports.registerManger = async (req, res) => {
         // Vérification si l'employé existe déjà
         const existingEmploye = await Employe.findOne({ email });
         if (existingEmploye) {
-            return res.status(500).json({ message: 'Employé avec cet email existe déjà.' });
+            return res.status(500).json({ message: 'An employee with this email already exists.' });
         }
 
         // 🔐 Hachage du mot de passe avant stockage

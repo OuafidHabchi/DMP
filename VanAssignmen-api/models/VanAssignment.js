@@ -1,6 +1,5 @@
 // models/VanAssignment.js
 const mongoose = require('mongoose');
-const { type } = require('os');
 
 const VanAssignmentSchema =new mongoose.Schema({
     employeeId: {
