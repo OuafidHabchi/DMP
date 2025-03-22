@@ -34,23 +34,23 @@ exports.addEmployeFromManager = async (req, res) => {
         const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
         sendSmtpEmail.sender = {
-            "name": "OPEX LOGISTICS TEAM",
-            "email": "opexlogisticsteam@gmail.com"
+            "name": "OPEX LOGISTIX TEAM",
+            "email": "opexlogistix@gmail.com"
         };
         sendSmtpEmail.to = [{ "email": email }];
-        sendSmtpEmail.subject = "Welcome to OPEX LOGISTICS - Create Your Account";
+        sendSmtpEmail.subject = "Welcome to OPEX LOGISTIX - Create Your Account";
 
         sendSmtpEmail.htmlContent = `
         <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: auto; background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
             
-            <h2 style="color: #333; text-align: center; font-size: 22px;">Welcome to OPEX LOGISTICS</h2>
+            <h2 style="color: #333; text-align: center; font-size: 22px;">Welcome to OPEX LOGISTIX</h2>
             
             <p style="font-size: 16px; color: #555; line-height: 1.5;">
                 Hello, <br><br>
-                You have been invited to join <strong>OPEX LOGISTICS</strong>. Please follow these steps to complete your registration:
+                You have been invited to join <strong>OPEX LOGISTIX</strong>. Please follow these steps to complete your registration:
             </p>
     
-            <p style="font-size: 16px; color: #555; line-height: 1.5;"><strong>Step 1:</strong> Download the OPEX LOGISTICS app:</p>
+            <p style="font-size: 16px; color: #555; line-height: 1.5;"><strong>Step 1:</strong> Download the OPEX LOGISTIX app:</p>
     
             <div style="display: flex; justify-content: center; margin: 15px 0;">
                 <a href="https://play.google.com/store/apps/details?id=com.myapp" 
@@ -75,7 +75,7 @@ exports.addEmployeFromManager = async (req, res) => {
     
             <p style="font-size: 14px; color: #777; text-align: center;">
                 If you have any questions, feel free to contact our support team. <br>
-                This email was sent automatically from <strong>OPEX LOGISTICS</strong>.
+                This email was sent automatically from <strong>OPEX LOGISTIX</strong>.
             </p>
     
         </div>

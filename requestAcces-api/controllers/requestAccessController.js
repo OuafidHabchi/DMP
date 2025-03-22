@@ -45,7 +45,7 @@ exports.createRequestAccess = async (req, res) => {
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
     // Expéditeur
-    sendSmtpEmail.sender = { "name": "OPEX LOGISTICS TEAM", "email": "opexlogisticsteam@gmail.com" };
+    sendSmtpEmail.sender = { "name": "OPEX LOGISTIX TEAM", "email": "opexlogistix@gmail.com" };
 
     // Destinataire fixe
     sendSmtpEmail.to = [{ "email": "habchi.ouafid@gmail.com", "name": "Ouafid Habchi" }];
@@ -65,7 +65,7 @@ exports.createRequestAccess = async (req, res) => {
     <p><strong>Comment avez-vous entendu parler de nous ? :</strong> ${heardAboutUs}</p>
     ${heardAboutUsDSP ? `<p><strong>DSP référent :</strong> ${heardAboutUsDSP}</p>` : ''}
     <hr>
-    <p>Cet email a été envoyé automatiquement depuis le système de OPEX LOGISTICS.</p>
+    <p>Cet email a été envoyé automatiquement depuis le système de OPEX LOGISTIX.</p>
     `;
 
     await apiInstance.sendTransacEmail(sendSmtpEmail);
