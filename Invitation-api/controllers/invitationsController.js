@@ -53,7 +53,7 @@ exports.addEmployeFromManager = async (req, res) => {
             <p style="font-size: 16px; color: #555; line-height: 1.5;"><strong>Step 1:</strong> Download the OPEX LOGISTIX app:</p>
     
             <div style="display: flex; justify-content: center; margin: 15px 0;">
-                <a href="https://play.google.com/store/apps/details?id=com.myapp" 
+                <a href="https://play.google.com/apps/testing/com.opexlogistics.app" 
                 style="background: #007bff; color: #ffffff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; margin-right: 20px; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
                 📱 Android</a>
     
