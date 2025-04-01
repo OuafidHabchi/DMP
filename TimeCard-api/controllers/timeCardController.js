@@ -175,67 +175,104 @@ exports.getTimeCardsByDay = async (req, res) => {
 // Mettre à jour ou créer les attributs CortexDuree et CortexEndTime pour plusieurs TimeCards
 exports.bulkUpdateOrCreateCortexAttributes = async (req, res) => {
   try {
-      const TimeCard = req.connection.models.TimeCard; // Modèle dynamique
-      const { updates } = req.body; // `updates` est un tableau contenant les IDs et les nouvelles valeurs.
+    const TimeCard = req.connection.models.TimeCard; // Modèle dynamique
+    const { updates } = req.body; // `updates` est un tableau contenant les IDs et les nouvelles valeurs.
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(500).json({ message: "Invalid input. 'updates' should be a non-empty array." });
+    }
 
-      if (!Array.isArray(updates) || updates.length === 0) {
-          return res.status(500).json({ message: "Invalid input. 'updates' should be a non-empty array." });
+    const results = [];
+
+    for (const update of updates) {
+      const { id, CortexDuree, CortexEndTime, expoPushToken } = update;
+
+      if (!id) {
+        results.push({
+          success: false,
+          message: "TimeCard ID is required.",
+          data: update,
+        });
+        continue;
       }
 
-      const results = [];
+      let timeCard = await TimeCard.findById(id);
+      let shouldSendNotification = false;
 
-      for (const update of updates) {
-          const { id, CortexDuree, CortexEndTime, expoPushToken } = update;
+      if (timeCard) {
+        // Vérifier s'il y a des différences avant de mettre à jour
+        const hasDureeChanged = CortexDuree !== undefined && timeCard.CortexDuree !== CortexDuree;
+        const hasEndTimeChanged = CortexEndTime !== undefined && timeCard.CortexEndTime !== CortexEndTime;
 
-          if (!id) {
-              results.push({
-                  success: false,
-                  message: "TimeCard ID is required.",
-                  data: update,
-              });
-              continue;
-          }
+        if (hasDureeChanged) timeCard.CortexDuree = CortexDuree;
+        if (hasEndTimeChanged) timeCard.CortexEndTime = CortexEndTime;
 
-          let timeCard = await TimeCard.findById(id);
+        // Déterminer si une notification doit être envoyée
+        shouldSendNotification = (hasDureeChanged || hasEndTimeChanged) &&
+          expoPushToken &&
+          CortexDuree &&
+          CortexEndTime;
 
-          if (timeCard) {
-              if (CortexDuree !== undefined) timeCard.CortexDuree = CortexDuree;
-              if (CortexEndTime !== undefined) timeCard.CortexEndTime = CortexEndTime;
+        await timeCard.save();
+        results.push({
+          success: true,
+          message: "Time card updated successfully.",
+          data: timeCard,
+        });
+      } else {
+        // Pour une nouvelle carte, on peut choisir d'envoyer ou non une notification
+        shouldSendNotification = expoPushToken && CortexDuree && CortexEndTime;
 
-              await timeCard.save();
-              results.push({
-                  success: true,
-                  message: "Time card updated successfully.",
-                  data: timeCard,
-              });
-          } else {
-              timeCard = new TimeCard({
-                  _id: id,
-                  CortexDuree: CortexDuree || null,
-                  CortexEndTime: CortexEndTime || null,
-              });
+        timeCard = new TimeCard({
+          _id: id,
+          CortexDuree: CortexDuree || null,
+          CortexEndTime: CortexEndTime || null,
+        });
 
-              await timeCard.save();
-              results.push({
-                  success: true,
-                  message: "Time card created successfully.",
-                  data: timeCard,
-              });
-          }
+        await timeCard.save();
 
-          // Envoyer une notification après la mise à jour ou la création
-          if (expoPushToken) {
-              const title = "Cortex Prediction";
-              const body = `Your route details have been updated. Go to your app to see the changes`;
-              const data = { timeCardId: timeCard._id };
-
-              await sendPushNotification(expoPushToken, title, body, data);
-          }
+        results.push({
+          success: true,
+          message: "Time card created successfully.",
+          data: timeCard,
+        });
       }
 
-      res.status(200).json({ results });
+      if (shouldSendNotification) {
+        const screenPath = '(driver)/(tabs)/(Employe)/AssignedVanScreen';
+
+        // Vérifier si CortexDuree est bien formaté et extraire les heures correctement
+        const dureeParts = CortexDuree.split(':');
+        if (dureeParts.length < 2) {
+          console.error("Format incorrect de CortexDuree:", CortexDuree);
+        }
+
+        const [hours, minutes] = dureeParts.map(Number);
+        const addMinutesToTime = (time, minutesToAdd) => {
+          const [hours, minutes] = time.split(':').map(Number);
+          const date = new Date();
+          date.setHours(hours, minutes + minutesToAdd, 0);
+
+          const newHours = String(date.getHours()).padStart(2, '0');
+          const newMinutes = String(date.getMinutes()).padStart(2, '0');
+
+          return `${newHours}:${newMinutes}`;
+        };
+
+        let adjustedEndTime = CortexEndTime;
+        if (hours > 5) {
+          adjustedEndTime = addMinutesToTime(CortexEndTime, 30);
+        }
+        const message = `Route updated! Ends at ${adjustedEndTime}, duration: ${CortexDuree} min. Check the app!`;
+        try {
+          await sendPushNotification(expoPushToken, message, screenPath);
+        } catch (error) {
+          console.error("Erreur lors de l'envoi de la notification:", error);
+        }
+      }
+    }
+    res.status(200).json({ results });
   } catch (error) {
-      res.status(500).json({ message: "Error processing Cortex attributes.", error });
+    res.status(500).json({ message: "Error processing Cortex attributes.", error: error.message });
   }
 };
 

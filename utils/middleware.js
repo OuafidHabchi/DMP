@@ -18,14 +18,14 @@ const dbMiddleware = async (req, res, next) => {
       // 🔥 Vérification de l'accès interdit
       if (connection && connection.accessDenied) {
         return res.status(499).json({
-          message: `Accès interdit pour le DSP code "${dsp_code}".`
+          message: `Access to the app is denied. Please contact your manager.`
         });
       }
       if (!connection) {
-        throw new Error('Connexion MongoDB introuvable.');
+        throw new Error('Connection not found. Check your login information.');
       }
     } catch (dbError) {
-      return res.status(500).json({ message: 'Erreur de connexion à MongoDB.', error: dbError.message });
+      return res.status(500).json({ message: 'No user found. Please check your login information.', error: dbError.message });
     }
 
     // Étape 2 : Vérification de req.requiredModels

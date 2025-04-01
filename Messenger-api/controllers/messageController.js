@@ -11,11 +11,11 @@ const validateConnection = (connection, modelName) => {
 // Déterminer le contenu du message
 const determineMessageContent = (file, content) => {
   if (file) {
-    if (file.mimetype.startsWith('video/')) return ;''
+    if (file.mimetype.startsWith('video/')) return; ''
     if (file.mimetype.startsWith('image/')) return '';
     return '';
   }
-  return content || 'Média partagé';
+  return content || '';
 };
 
 // Envoi d'un message avec ou sans fichier
@@ -46,13 +46,20 @@ exports.uploadMessage = async (req, res) => {
     // Envoi des notifications push
     const notificationPromises = participants.map(async (participant) => {
       if (participant.expoPushToken && participant._id !== senderId) {
+        // Déterminez l'écran de destination en fonction du rôle
+        const screen = participant.role === 'manager'
+          ? '(manager)/(tabs)/(messenger)/Messenger'  // Chemin pour le manager
+          : '(driver)/(tabs)/(messenger)/Messenger';  // Chemin pour le driver
+
         await sendPushNotification(
           participant.expoPushToken,
           `Nouveau message de ${senderName} ${senderfamilyName}`,
-          messageContent
+          screen  // Utilisation du chemin dynamique
         );
       }
     });
+
+
     await Promise.all(notificationPromises);
   } catch (error) {
     if (!res.headersSent) {
@@ -62,14 +69,20 @@ exports.uploadMessage = async (req, res) => {
 };
 
 
-// Récupération des messages d'une conversation
+// Nouvelle version avec pagination
 exports.getMessagesByConversation = async (req, res) => {
   try {
     validateConnection(req.connection, 'Message');
     const Message = req.connection.models.Message;
     const { conversationId } = req.params;
-    const messages = await Message.find({ conversationId }).sort({ timestamp: 1 });
-    res.status(200).json(messages);
+    const { page = 1, limit = 40 } = req.query; // Valeurs par défaut
+
+    const messages = await Message.find({ conversationId })
+      .sort({ timestamp: -1 }) // Tri décroissant pour avoir les plus récents en premier
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    res.status(200).json(messages.reverse()); // On inverse pour avoir l'ordre chronologique
   } catch (error) {
     res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
   }

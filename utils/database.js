@@ -18,11 +18,11 @@ const getDatabaseConnection = async (dsp_code) => {
 
   // Vérification du DSP code et du statut Access
   if (!dspInfo) {
-    throw new Error(`DSP code "${dsp_code}" introuvable dans le mapping.`);
+    throw new Error(`DSP code "${dsp_code}" not found in the mapping.`);
   }
   
   if (!dspInfo.Access) {
-    console.log(`Accès interdit pour le DSP code "${dsp_code}"`);
+    console.log(`Access denied for DSP code "${dsp_code}"`);
     // 🚨 On retourne un objet spécial pour signaler l'accès interdit
     return { accessDenied: true };
   }

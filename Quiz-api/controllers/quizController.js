@@ -129,20 +129,30 @@ exports.assignQuizToEmployee = async (req, res) => {
             return res.status(500).json({ message: 'Employee not found' });
         }
 
+        // Déterminer le screen selon le rôle de l'employé
+        let screen = '';
+        if (employee.role === 'manager') {
+            screen = '(manager)/(tabs)/(RH)/QuizManagement';
+        } else if (employee.role === 'driver') {
+            screen = '(driver)/(tabs)/(Employe)/Quiz';
+        }
+
         // Envoi de la notification push si l'employé a un token valide
         if (employee.expoPushToken) {
             try {
+                const message = `A new quiz titled "${quiz.title}" has been assigned to you. Take the quiz and submit your answers before the deadline!`;
                 await sendPushNotification(
                     employee.expoPushToken,
-                    `You have been assigned a new quiz: '${quiz.title}'. Check it out and submit your answers!`
+                    message,
+                    screen
                 );
             } catch (error) {
+                console.error("Error sending notification:", error);
             }
-        } else {
         }
 
         res.status(200).json({
-            message: 'Quiz assigned successfully and notification sent',
+            message: 'Quiz assigned successfully ',
             assignment
         });
 
@@ -150,6 +160,7 @@ exports.assignQuizToEmployee = async (req, res) => {
         res.status(500).json({ message: 'Error assigning quiz', error });
     }
 };
+
 
 exports.submitQuiz = async (req, res) => {
     try {
@@ -201,8 +212,8 @@ exports.getAssignedEmployees = async (req, res) => {
             name: assignment.employeeId.name,
             familyName: assignment.employeeId.familyName,
             score: assignment.score,
-            assignmentId: assignment._id , // ✅ Ajout correct de assignmentId
-            status:assignment.status
+            assignmentId: assignment._id, // ✅ Ajout correct de assignmentId
+            status: assignment.status
         }));
 
         res.status(200).json(employeesWithAssignments);
@@ -256,10 +267,20 @@ exports.submitQuizResults = async (req, res) => {
         const { assignmentId, answers, score } = req.body;
         const Assignment = req.connection.models.QuizAssignment;
         const Quiz = req.connection.models.Quiz;
+        const Employee = req.connection.models.Employee;
+
         // Vérifier l'existence de l'assignation
         const assignment = await Assignment.findById(assignmentId);
+        if (!assignment) {
+            return res.status(500).json({ message: 'Assignment not found' });
+        }
+
         // Récupérer le quiz associé
         const quiz = await Quiz.findById(assignment.quizId);
+        if (!quiz) {
+            return res.status(500).json({ message: 'Quiz not found' });
+        }
+
         // Vérifier et préparer les résultats
         const results = answers.map((answer) => {
             const correspondingQuestion = quiz.questions.find(q =>
@@ -292,16 +313,47 @@ exports.submitQuizResults = async (req, res) => {
         assignment.score = parseFloat(score); // Utilise directement le score reçu du frontend
         await assignment.save();
 
+        // Récupérer les informations de l'employé ayant soumis le quiz
+        const employee = await Employee.findById(assignment.employeeId);
+        if (!employee) {
+            return res.status(500).json({ message: 'Employee not found' });
+        }
+
+        // Récupérer tous les managers pour envoyer la notification
+        const managers = await Employee.find({ role: 'manager' });
+
+        // Envoyer la notification à chaque manager
+        const notificationPromises = managers.map(async (manager) => {
+            const formattedScore = (score).toFixed(2) + '%';
+            if (manager.expoPushToken) {
+                const message = `${employee.name} ${employee.familyName} has submitted the answer of the quiz "${quiz.title}" with a score of ${formattedScore}. Check the details!`;
+                try {
+                    await sendPushNotification(
+                        manager.expoPushToken,
+                        message,
+                        '(manager)/(tabs)/(RH)/QuizManagement'
+                    );
+                } catch (error) {
+                    console.error('Error sending push notification:', error);
+                }
+            }
+        });
+
+        // Attendre l'envoi de toutes les notifications
+        await Promise.all(notificationPromises);
+
         res.status(200).json({
-            message: '✅ Quiz results submitted successfully',
+            message: '✅ Quiz results submitted successfully and notifications sent to managers',
             score: score, // Renvoyer le score tel qu'il a été reçu
             details: results
         });
 
     } catch (error) {
+        console.error('⚠️ Error submitting quiz results:', error);
         res.status(500).json({ message: '⚠️ Error submitting quiz results', error });
     }
 };
+
 
 
 // 🚀 Récupérer les réponses d'un employé pour un quiz donné

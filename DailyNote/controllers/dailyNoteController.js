@@ -13,7 +13,7 @@ if (!fs.existsSync(uploadDirectory)) {
 exports.createDailyNote = async (req, res) => {
     try {
         const DailyNote = req.connection.models.DailyNote;
-        const Employe = req.connection.models.Employee; // ✅ Vérifier le modèle `Employee`
+        let Employe = req.connection.models.Employee; // ✅ Vérifier le modèle `Employee`
 
         if (!Employe) {
             // 🔥 Dynamically require and initialize the Employee model
@@ -57,11 +57,15 @@ exports.createDailyNote = async (req, res) => {
             for (const manager of managers) {
                 if (manager.expoPushToken) {
                     const notificationBody = `A new ${req.body.problemType} Problme has been send. Check it now!`;
-                    await sendPushNotification(manager.expoPushToken, notificationBody);
+                    const screen = '(manager)/(tabs)/(accueil)/Accueil'; // ✅ Ajout du screen path
+
+                    await sendPushNotification(manager.expoPushToken, notificationBody, screen);
                 }
             }
         } else {
+            // rien à faire ici pour le moment
         }
+
 
     } catch (error) {
         res.status(500).json({ error: 'Erreur lors de la création de la note.', details: error.message });

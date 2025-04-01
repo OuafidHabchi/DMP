@@ -5,7 +5,7 @@ const router = express.Router();
 
 // Middleware pour spécifier le modèle nécessaire
 router.use((req, res, next) => {
-  req.requiredModels = ['ExtraRoad'];
+  req.requiredModels = ['ExtraRoad','Employee'];
   next();
 });
 

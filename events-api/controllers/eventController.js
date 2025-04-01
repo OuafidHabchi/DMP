@@ -4,21 +4,24 @@ exports.createEvent = async (req, res) => {
     try {
         const Event = req.connection.models.Event;
         const Employee = req.connection.models.Employee;
+
         // Create the event
         const event = new Event(req.body);
         const savedEvent = await event.save();
 
         // Retrieve the event creator
         const creator = await Employee.findById(savedEvent.createdBy);
-        if (!creator) {
-            console.log("⚠️ Creator not found:", savedEvent.createdBy);
-        }
         const creatorName = creator ? `${creator.name} ${creator.familyName}` : "Unknown";
 
         // Retrieve invited guests
         const invitedIds = savedEvent.invitedGuests;
-        const invitedEmployees = await Employee.find({ _id: { $in: invitedIds }, expoPushToken: { $exists: true } });
+        const invitedEmployees = await Employee.find({
+            _id: { $in: invitedIds },
+            expoPushToken: { $exists: true }
+        });
 
+        // ✅ Définir le screen
+        const screen = '(manager)/(tabs)/(RH)/AgendaComponent';
 
         // Send notifications to invited guests
         const tokens = invitedEmployees.map(emp => emp.expoPushToken);
@@ -26,11 +29,8 @@ exports.createEvent = async (req, res) => {
         if (tokens.length > 0) {
             const message = `You are invited to a meeting created by ${creatorName} on ${savedEvent.date} at ${savedEvent.heur}.`;
             for (const token of tokens) {
-                console.log("📤 Sending notification to:", token);
-                await sendPushNotification(token, message);
+                await sendPushNotification(token, message, screen);
             }
-        } else {
-            console.log("🚫 No tokens available, no notifications sent.");
         }
 
         res.status(200).json(savedEvent);
@@ -39,6 +39,7 @@ exports.createEvent = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
 
 
 
@@ -76,7 +77,6 @@ exports.getEventById = async (req, res) => {
     }
 };
 
-
 // Mettre à jour un événement
 exports.updateEvent = async (req, res) => {
     try {
@@ -105,15 +105,21 @@ exports.updateEvent = async (req, res) => {
         if (changes.length > 0) {
             const message = `🔄 The meeting created by ${creatorName} has been updated:\n${changes.join('\n')}`;
 
+            // ✅ Définir le screen
+            const screen = '(manager)/(tabs)/(RH)/AgendaComponent';
+
             // Récupérer les invités
             const invitedIds = updatedEvent.invitedGuests;
-            const invitedEmployees = await Employee.find({ _id: { $in: invitedIds }, expoPushToken: { $exists: true } });
+            const invitedEmployees = await Employee.find({
+                _id: { $in: invitedIds },
+                expoPushToken: { $exists: true }
+            });
 
             // Envoyer les notifications aux invités
             const tokens = invitedEmployees.map(emp => emp.expoPushToken);
             if (tokens.length > 0) {
                 for (const token of tokens) {
-                    await sendPushNotification(token, message);
+                    await sendPushNotification(token, message, screen);
                 }
             }
         }
@@ -141,14 +147,20 @@ exports.deleteEvent = async (req, res) => {
 
         // Récupérer les invités
         const invitedIds = deletedEvent.invitedGuests;
-        const invitedEmployees = await Employee.find({ _id: { $in: invitedIds }, expoPushToken: { $exists: true } });
+        const invitedEmployees = await Employee.find({
+            _id: { $in: invitedIds },
+            expoPushToken: { $exists: true }
+        });
+
+        // ✅ Définir le screen
+        const screen = '(manager)/(tabs)/(RH)/AgendaComponent';
 
         // Envoyer une notification aux invités
         const tokens = invitedEmployees.map(emp => emp.expoPushToken);
         if (tokens.length > 0) {
             const message = `The meeting created by ${creatorName} on ${deletedEvent.date} at ${deletedEvent.heur} has been cancelled.`;
             for (const token of tokens) {
-                await sendPushNotification(token, message);
+                await sendPushNotification(token, message, screen);
             }
         }
 

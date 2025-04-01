@@ -30,33 +30,51 @@ exports.getProcedureById = async (req, res) => {
 
 
 // Créer une nouvelle procédure
+// Créer une nouvelle procédure
 exports.createProcedure = async (req, res) => {
     try {
-        const Procedure = req.connection.models.Procedure; // Modèle dynamique
+        const Procedure = req.connection.models.Procedure;
+        const Employee = req.connection.models.Employee;
         const procedure = new Procedure(req.body);
-        // Enregistrer la procédure
         const savedProcedure = await procedure.save();
 
-        // Envoyer les notifications à tous les tokens Expo
-        const tokens = req.body.employeeExpoTokens; // S'assurer que c'est un tableau de tokens
-        const notificationPromises = tokens.map(async (token) => {
-            if (token) {
-                await sendPushNotification(
-                    token,
-                    'New Procedure Created',
-                    `Procedure "${savedProcedure.name}" has been added. Check it out!`
-                );
+        // Récupérer le créateur de la procédure
+        const creator = await Employee.findById(savedProcedure.createdBy);
+        const creatorName = creator ? `${creator.name} ${creator.familyName}` : "Unknown";
+
+        // Récupérer tous les employés dans la collection Employee
+        const employees = await Employee.find({ expoPushToken: { $exists: true } });
+
+        // Envoyer les notifications
+        const notificationPromises = employees.map(async (emp) => {
+            let screen = '';
+            // Ajouter le screen en fonction du rôle de l'employé
+            if (emp.role === 'manager') {
+                screen = '(manager)/(tabs)/(RH)/Procedure';
+            } else if (emp.role === 'driver') {
+                screen = '(driver)/(tabs)/(Employe)/ProcedureEmployee';
             }
+
+            // Message incluant le nom du créateur
+            const message = `New procedure "${savedProcedure.name}" created by ${creatorName}. Tap to see the details.`;
+
+            await sendPushNotification(
+                emp.expoPushToken,
+                message,
+                screen
+            );
         });
 
-        // Attendre que toutes les notifications soient envoyées
         await Promise.all(notificationPromises);
 
         res.status(200).json(savedProcedure);
     } catch (err) {
+        console.error("Erreur lors de la création de la procédure :", err.message);
         res.status(500).json({ message: err.message });
     }
 };
+
+
 
 
 
@@ -64,22 +82,44 @@ exports.createProcedure = async (req, res) => {
 exports.updateProcedure = async (req, res) => {
     try {
         const Procedure = req.connection.models.Procedure; // Modèle dynamique
+        const Employee = req.connection.models.Employee;
         const { id } = req.params;
 
-        // Mettre à jour la procédure
-        const updatedProcedure = await Procedure.findByIdAndUpdate(id, req.body, { new: true });
-        if (!updatedProcedure) {
+        // Récupérer la procédure existante
+        const oldProcedure = await Procedure.findById(id);
+        if (!oldProcedure) {
+            console.error("Procédure non trouvée");
             return res.status(500).json({ message: 'Procedure not found' });
         }
 
-        // Envoyer les notifications à tous les tokens Expo
-        const tokens = req.body.employeeExpoTokens; // S'assurer que c'est un tableau de tokens
-        const notificationPromises = tokens.map(async (token) => {
-            if (token) {
+        // Mettre à jour la procédure
+        const updatedProcedure = await Procedure.findByIdAndUpdate(id, req.body, { new: true });
+
+        // Récupérer le créateur de la procédure
+        const creator = await Employee.findById(updatedProcedure.createdBy);
+        const creatorName = creator ? `${creator.name} ${creator.familyName}` : "Unknown";
+
+        // Récupérer tous les employés dans la collection Employee
+        const employees = await Employee.find({ expoPushToken: { $exists: true } });
+
+        // Envoyer les notifications aux employés concernés
+        const notificationPromises = employees.map(async (emp) => {
+            if (emp.expoPushToken) {
+                let screen = '';
+                // Déterminer l'écran de notification selon le rôle
+                if (emp.role === 'manager') {
+                    screen = '(manager)/(tabs)/(RH)/Procedure';
+                } else if (emp.role === 'driver') {
+                    screen = '(driver)/(tabs)/(Employe)/ProcedureEmployee';
+                }
+
+                // Message de notification incluant le nom du créateur
+                const message = `The procedure "${updatedProcedure.name}" created by ${creatorName} has been updated. Check the details!`;
+
                 await sendPushNotification(
-                    token,
-                    'Procedure Updated',
-                    `Procedure "${updatedProcedure.name}" has been updated. Check the details!`
+                    emp.expoPushToken,
+                    message,
+                    screen
                 );
             }
         });
@@ -89,6 +129,7 @@ exports.updateProcedure = async (req, res) => {
 
         res.status(200).json(updatedProcedure);
     } catch (err) {
+        console.error("Erreur lors de la mise à jour de la procédure :", err.message);
         res.status(500).json({ message: err.message });
     }
 };

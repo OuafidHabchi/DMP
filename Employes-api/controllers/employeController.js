@@ -46,22 +46,26 @@ exports.registeremploye = async (req, res) => {
         const tokens = managers.map(manager => manager.expoPushToken);
 
         // 🔥 Envoyer la notification à tous les managers
+        // 🔥 Envoyer la notification à tous les managers
         if (tokens.length > 0) {
             const message = `New employee account created: ${name} ${familyName}.`;
+            const screen = '(manager)/(tabs)/(RH)/AllEmployees'; // ✅ Screen pour les managers
+
             for (const token of tokens) {
-                await sendPushNotification(token, message);
+                await sendPushNotification(token, message, screen);
             }
         }
 
+
         res.status(200).json(newEmploye);
     } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de l\'inscription de l\'employé', error });
+        res.status(500).json({ message: 'Error during registration', error });
     }
 };
 
 
-// Inscription d'un employé
-exports.registerManger = async (req, res) => {    
+// Inscription d'un manager
+exports.registerManger = async (req, res) => {
     try {
         const { name, familyName, tel, email, password, role, language, scoreCard, expoPushToken, dsp_code } = req.body;
         const Employe = req.connection.models.Employee; // Modèle injecté dynamiquement
@@ -118,13 +122,13 @@ exports.loginemploye = async (req, res) => {
 
         // 🔴 Vérification de l'existence de l'employé
         if (!existingEmploye) {
-            return res.status(500).json({ message: 'Email ou mot de passe incorrect.' });
+            return res.status(500).json({ message: 'Incorrect email or password.' });
         }
 
         // 🔐 Comparaison du mot de passe haché
         const isMatch = await bcrypt.compare(password, existingEmploye.password);
         if (!isMatch) {
-            return res.status(500).json({ message: 'Email ou mot de passe incorrect.' });
+            return res.status(500).json({ message: 'Incorrect email or password.' });
         }
 
         // 🔹 Mise à jour de l'expoPushToken seulement si fourni
@@ -261,10 +265,17 @@ exports.updateScoreCardByTransporterIDs = async (req, res) => {
             employe.focusArea = transporter.focusArea || employe.focusArea;
             await employe.save();
 
-            // Envoi de notification si un token est fourni
+            // ✅ Envoi de notification avec screen selon le rôle
             if (employe.expoPushToken) {
-                const message = `Your new Scrore Card is : ${transporter.scoreCard} `;
-                await sendPushNotification(employe.expoPushToken, message);
+                let screen = '';
+                if (employe.role === 'manager') {
+                    screen = '(manager)/(tabs)/(accueil)/Profile';
+                } else if (employe.role === 'driver') {
+                    screen = '(driver)/(tabs)/(Employe)/Profile';
+                }
+
+                const message = `Your new Score Card is : ${transporter.scoreCard}`;
+                await sendPushNotification(employe.expoPushToken, message, screen);
             }
 
             updateResults.push({ Transporter_ID: transporter.Transporter_ID, status: 'Updated Successfully' });
@@ -276,6 +287,7 @@ exports.updateScoreCardByTransporterIDs = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la mise à jour des scoreCards', error });
     }
 };
+
 
 
 // Récupérer plusieurs employés par ID

@@ -58,7 +58,13 @@ exports.createWorning = async (req, res) => {
         } = req.body;
 
         const Worning = req.connection.models.Worning;
+        let Employe = req.connection.models.Employee; // ✅ Vérifier le modèle `Employee`
 
+        if (!Employe) {
+            // 🔥 Dynamically require and initialize the Employee model
+            const employeeSchema = require('../../Employes-api/models/Employee'); // Adjust the path if necessary
+            Employe = req.connection.model('Employee', employeeSchema);
+        }
         // Création du warning avec les données reçues
         const newWorning = new Worning({
             employeID,
@@ -79,17 +85,25 @@ exports.createWorning = async (req, res) => {
         if (req.file) {
             newWorning.photo = `uploads-wornings/${req.file.filename}`;
         }
-        
-
         // Sauvegarde du warning dans la base de données
         const savedWorning = await newWorning.save();
 
+       
         // Envoi d'une notification si un token Expo est fourni
         if (expoPushToken) {
-            const notificationTitle = "New Warning Created";
-            const notificationBody = `A warning of type ${type} has been created. Check the details in your app.`;
+            const employeeConcerned = await Employe.findById(employeID).select('role expoPushToken name');
+            if (!employeeConcerned) {
+                console.log("Employé non trouvé");
+                return res.status(200).json(savedWorning);
+            }
+    
+            const targetScreen = employeeConcerned.role === 'manager' 
+                ? '(manager)/(tabs)/(RH)/Warnings' 
+                : '(driver)/(tabs)/(Employe)/EmployeeWarnings';
+
+                const notificationBody = `You have received a new ${type}. Open the app for more details.`;
             try {
-                await sendPushNotification(expoPushToken, notificationTitle, notificationBody);
+                await sendPushNotification(expoPushToken, notificationBody, targetScreen);
             } catch (error) {
                 
             }
