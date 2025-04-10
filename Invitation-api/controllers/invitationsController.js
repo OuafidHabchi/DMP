@@ -38,7 +38,7 @@ exports.addEmployeFromManager = async (req, res) => {
             "email": "opexlogistix@gmail.com"
         };
         sendSmtpEmail.to = [{ "email": email }];
-        sendSmtpEmail.subject = "Welcome to OPEX LOGISTIX - Create Your Account";
+        sendSmtpEmail.subject = "Create Your Account";
 
         sendSmtpEmail.htmlContent = `
         <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: auto; background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
