@@ -25,7 +25,7 @@ exports.addEmployeFromManager = async (req, res) => {
         var apiKey = defaultClient.authentications['api-key'];
         apiKey.apiKey = process.env.BREVO_API_KEY;
 
-        if (!process.env.BREVO_API_KEY) {            
+        if (!process.env.BREVO_API_KEY) {
             return res.status(500).json({ message: "Server error: Missing email API key." });
         }
 
@@ -53,11 +53,11 @@ exports.addEmployeFromManager = async (req, res) => {
             <p style="font-size: 16px; color: #555; line-height: 1.5;"><strong>Step 1:</strong> Download the OPEX LOGISTIX app:</p>
     
             <div style="display: flex; justify-content: center; margin: 15px 0;">
-                <a https://play.google.com/store/apps/details?id=com.opexlogistics.app" 
+                <a href="https://play.google.com/store/apps/details?id=com.opexlogistics.app" 
                 style="background: #007bff; color: #ffffff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; margin-right: 20px; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
                 📱 Android</a>
     
-                <a https://apps.apple.com/us/app/opex-logistix/id6743144792" 
+                <a href="https://apps.apple.com/us/app/opex-logistix/id6743144792" 
                 style="background: #007bff; color: #ffffff; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
                 🍏 iOS</a>
             </div>
@@ -68,21 +68,22 @@ exports.addEmployeFromManager = async (req, res) => {
             <div style="text-align: center; margin: 20px 0;">
                 <a href="${deepLink}" 
                 style="background: #28a745; color: #ffffff; padding: 14px 24px; border-radius: 5px; text-decoration: none; font-size: 16px; font-weight: bold; display: inline-block; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
-                  Create My Account</a>
+                  Create Account</a>
             </div>
     
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
 
-             <p style="font-size: 14px; color: #555; line-height: 1.5;">
-        🎥 <strong>Want to see how the app works?</strong><br>
-        Watch our short video tutorial that explains the main features and how to use OPEX LOGISTIX effectively:
-    </p>
 
-    <div style="text-align: center; margin: 15px 0;">
-        <a href="https://drive.google.com/file/d/19OZPu6lIheAwVLgvp7Q0TFHxRwvAAuoX/view?usp=sharing" 
-        style="background: #6c63ff; color: #ffffff; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
-        ▶️ Watch the App Tutorial</a>
-    </div>
+            <p style="font-size: 14px; color: #555; line-height: 1.5;">
+            🎥 <strong>Want to see how the app works?</strong><br>
+            Watch our short video tutorial that explains the main features and how to use OPEX LOGISTIX effectively:
+        </p>
+    
+        <div style="text-align: center; margin: 15px 0;">
+            <a href="https://drive.google.com/file/d/19OZPu6lIheAwVLgvp7Q0TFHxRwvAAuoX/view?usp=sharing" 
+            style="background: #6c63ff; color: #ffffff; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
+            ▶️ Watch the App Tutorial</a>
+        </div>
     
             <p style="font-size: 14px; color: #777; text-align: center;">
                 If you have any questions, feel free to contact our support team. <br>
@@ -105,7 +106,6 @@ exports.addEmployeFromManager = async (req, res) => {
         res.status(500).json({ message: 'Error processing the request', error });
     }
 };
-
 
 
 
