@@ -72,6 +72,17 @@ exports.addEmployeFromManager = async (req, res) => {
             </div>
     
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+
+             <p style="font-size: 14px; color: #555; line-height: 1.5;">
+        🎥 <strong>Want to see how the app works?</strong><br>
+        Watch our short video tutorial that explains the main features and how to use OPEX LOGISTIX effectively:
+    </p>
+
+    <div style="text-align: center; margin: 15px 0;">
+        <a href="https://drive.google.com/file/d/19OZPu6lIheAwVLgvp7Q0TFHxRwvAAuoX/view?usp=sharing" 
+        style="background: #6c63ff; color: #ffffff; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; box-shadow: 2px 2px 6px rgba(0,0,0,0.2);">
+        ▶️ Watch the App Tutorial</a>
+    </div>
     
             <p style="font-size: 14px; color: #777; text-align: center;">
                 If you have any questions, feel free to contact our support team. <br>
