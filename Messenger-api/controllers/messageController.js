@@ -53,7 +53,7 @@ exports.uploadMessage = async (req, res) => {
 
         await sendPushNotification(
           participant.expoPushToken,
-          `Nouveau message de ${senderName} ${senderfamilyName}`,
+          `${senderName} ${senderfamilyName} send you a message`,
           screen  // Utilisation du chemin dynamique
         );
       }
