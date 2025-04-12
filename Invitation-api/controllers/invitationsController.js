@@ -109,7 +109,6 @@ exports.addEmployeFromManager = async (req, res) => {
 
 
 
-
 // ✅ Vérifie si une invitation est fonctionnelle
 exports.checkInvitationStatus = async (req, res) => {
     try {
