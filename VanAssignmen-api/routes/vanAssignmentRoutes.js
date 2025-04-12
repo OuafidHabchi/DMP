@@ -13,7 +13,7 @@ router.use((req, res, next) => {
     'Status',
     'Shift',
     'Employee',
-    'Disponibilite'
+    'Disponibilite',
   ];
   next();
 });

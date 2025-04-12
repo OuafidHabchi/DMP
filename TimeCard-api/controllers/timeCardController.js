@@ -310,3 +310,67 @@ exports.uploadTimeCardImage = async (req, res) => {
   }
 };
 
+
+exports.getConsolidatedTimeCards = async (req, res) => {  
+  try {
+    const { date } = req.params; // ✅ correction ici
+    const models = req.connection.models;
+    // 1. Récupérer les assignations de véhicules pour la date
+    const vanAssignmentsPromise = models.VanAssignment.find({ date }) || [];
+
+    // 2. Récupérer les employés concernés
+    const vanAssignments = await vanAssignmentsPromise;
+    const employeeIds = vanAssignments.map(a => a.employeeId);
+
+    // 3. Récupérer les disponibilités confirmées avant Promise.all
+    const disponibilities = await models.Disponibilite.find({
+      selectedDay: new Date(date).toDateString(),
+      confirmation: "confirmed",
+      presence: "confirmed",
+      employeeId: { $in: employeeIds }
+    }) || [];
+
+    // 4. Définir shiftIds à partir des disponibilités
+    const shiftIds = [...new Set(disponibilities.map(d => d.shiftId))];
+
+    // 5. Effectuer plusieurs requêtes en parallèle
+    const [
+      employees,
+      shifts,
+      vans,
+      timeCards,
+      [functionalPhones, functionalPowerBanks]
+    ] = await Promise.all([
+      models.Employee.find({ _id: { $in: employeeIds } }) || [],
+      models.Shift.find({ _id: { $in: shiftIds } }) || [],
+      models.Vehicle.find({ _id: { $in: [...new Set(vanAssignments.map(a => a.vanId))] } }) || [],
+      models.TimeCard.find({ day: date }) || [],
+      Promise.all([
+        models.Phone.find({ functional: true }),
+        models.PowerBank.find({ functional: true })
+      ])
+    ]);
+
+    // Structurer la réponse finale
+    const response = {
+      employees: employees.reduce((acc, emp) => ({ ...acc, [emp._id]: emp }), {}),
+      shifts: shifts.reduce((acc, shift) => ({ ...acc, [shift._id]: shift }), {}),
+      vans: vans.reduce((acc, van) => ({ ...acc, [van._id]: van }), {}),
+      disponibilities: disponibilities.reduce((acc, disp) => ({ ...acc, [disp.employeeId]: disp }), {}),
+      timeCards,
+      vanAssignments,
+      functionalPhones,
+      functionalPowerBanks
+    };
+
+    res.status(200).json(response);
+
+  } catch (error) {
+    console.error('Erreur dans getConsolidatedTimeCards:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la consolidation des données',
+      details: error.message 
+    });
+  }
+};
+

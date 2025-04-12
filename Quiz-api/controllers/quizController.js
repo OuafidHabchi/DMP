@@ -380,7 +380,7 @@ exports.getEmployeeQuizAnswers = async (req, res) => {
             const userAnswer = assignment.answers.find((ans) => ans.questionText === question.questionText);
             return {
                 question: question.questionText,
-                userAnswer: userAnswer ? userAnswer.selectedOption : "Pas de réponse",
+                userAnswer: userAnswer ? userAnswer.selectedOption : "No response",
                 correctAnswer: question.correctAnswer,
                 isCorrect: userAnswer ? userAnswer.selectedOption === question.correctAnswer : false,
             };

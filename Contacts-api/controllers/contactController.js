@@ -27,7 +27,7 @@ exports.addContact = async (req, res) => {
       <p><strong>DSP Code :</strong> ${newContact.dsp_code}</p>
       <hr>
       <h4>Message :</h4>
-      <p>${newContact.message}</p>
+      <p>${newContact.message}</p> 
       <hr>
       <p>Cet email a été envoyé automatiquement depuis le système de OPEX LOGISTIX .</p>
     `;

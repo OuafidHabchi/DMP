@@ -6,7 +6,19 @@ const router = express.Router();
 
 // Middleware pour spécifier le modèle nécessaire
 router.use((req, res, next) => {
-  req.requiredModels = ['TimeCard'];
+  req.requiredModels = [
+    'TimeCard',
+    'VanAssignment',
+    'Vehicle',
+    'ReportIssues',
+    'Status',
+    'Shift',
+    'Employee',
+    'Disponibilite',
+    'Phone',
+    'PowerBank',
+    'Comment',
+  ];
   next();
 });
 
@@ -30,6 +42,8 @@ router.get('/timecardsss/dday/:day', timeCardController.getTimeCardsByDay);
 
 // Route pour la mise à jour ou création en masse des attributs Cortex
 router.post('/timecards/bulk-update-cortex', timeCardController.bulkUpdateOrCreateCortexAttributes);
+
+router.get('/timecardsz/consolidated/:date', timeCardController.getConsolidatedTimeCards);
 
 router.post(
   "/timecards/:id/upload-image",

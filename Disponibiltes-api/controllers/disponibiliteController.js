@@ -7,9 +7,16 @@ exports.createDisponibilite = async (req, res) => {
 
     try {
         const Disponibilite = req.connection.models.Disponibilite;
+        let Employe = req.connection.models.Employee;
 
         if (!Disponibilite) {
             return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible dans la connexion actuelle.' });
+        }
+
+        // Charger dynamiquement le modèle Employe si nécessaire
+        if (!Employe) {
+            const employeeSchema = require('../../Employes-api/models/Employee');
+            Employe = req.connection.model('Employee', employeeSchema);
         }
 
         const newDisponibilite = new Disponibilite({ employeeId, selectedDay, shiftId, decisions, expoPushToken });
@@ -17,10 +24,22 @@ exports.createDisponibilite = async (req, res) => {
 
         res.status(200).json(newDisponibilite);
 
-        if (expoPushToken) {
+        if (expoPushToken && employeeId) {
+            const employee = await Employe.findById(employeeId).select('role');
+            let screen = '';
+
+            if (employee?.role === 'manager') {
+                screen = '(manager)/(tabs)/(RH)/EmployeesAvaibilities';
+            } else if (employee?.role === 'driver') {
+                screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
+            }
+
+            const notificationBody = `A new availability has been created for you on ${selectedDay}. Please review it.`;
+
             sendPushNotification(
                 expoPushToken,
-                `A new availability has been created for you on ${selectedDay}. Please review it.`
+                notificationBody,
+                screen
             ).catch((notificationError) => {
                 console.error('Erreur lors de l\'envoi de la notification push:', notificationError);
             });
@@ -31,6 +50,7 @@ exports.createDisponibilite = async (req, res) => {
         }
     }
 };
+
 
 
 // Récupérer toutes les disponibilités
@@ -101,19 +121,38 @@ exports.updateDisponibilite = async (req, res) => {
 exports.deleteDisponibilite = async (req, res) => {
     try {
         const Disponibilite = req.connection.models.Disponibilite;
+        let Employe = req.connection.models.Employee;
 
         if (!Disponibilite) {
             return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible dans la connexion actuelle.' });
         }
 
+        if (!Employe) {
+            const employeeSchema = require('../../Employes-api/models/Employee');
+            Employe = req.connection.model('Employee', employeeSchema);
+        }
+
         const deletedDisponibilite = await Disponibilite.findByIdAndDelete(req.params.id);
 
-        res.status(200).json({ message: deletedDisponibilite ? 'Disponibilite deleted successfully.' : 'Aucune disponibilité à supprimer.' });
+        res.status(200).json({ message: deletedDisponibilite ? 'Disponibilité supprimée avec succès.' : 'Aucune disponibilité à supprimer.' });
 
-        if (deletedDisponibilite?.expoPushToken) {
+        // Envoi notification si le token est présent
+        if (deletedDisponibilite?.expoPushToken && deletedDisponibilite?.employeeId) {
+            const employee = await Employe.findById(deletedDisponibilite.employeeId).select('role');
+            let screen = '';
+
+            if (employee?.role === 'manager') {
+                screen = '(manager)/(tabs)/(RH)/EmployeesAvaibilities';
+            } else if (employee?.role === 'driver') {
+                screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
+            }
+
+            const notificationBody = `Your availability on ${deletedDisponibilite.selectedDay} has been deleted.`;
+
             sendPushNotification(
                 deletedDisponibilite.expoPushToken,
-                `Your availability on ${deletedDisponibilite.selectedDay} has been deleted.`
+                notificationBody,
+                screen
             ).catch((notificationError) => {
                 console.error('Erreur lors de l\'envoi de la notification push:', notificationError);
             });
@@ -126,17 +165,29 @@ exports.deleteDisponibilite = async (req, res) => {
 
 
 
+
 // Supprimer les disponibilités par shiftId
 exports.deleteDisponibilitesByShiftId = async (req, res) => {
     const { shiftId } = req.params;
 
     try {
         const Disponibilite = req.connection.models.Disponibilite;
+        let Employe = req.connection.models.Employee;
 
         if (!Disponibilite) {
             return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible dans la connexion actuelle.' });
         }
 
+        // Charger dynamiquement le modèle Employe si nécessaire
+        if (!Employe) {
+            const employeeSchema = require('../../Employes-api/models/Employee');
+            Employe = req.connection.model('Employee', employeeSchema);
+        }
+
+        // Récupérer les disponibilités avant suppression pour envoyer les notifications
+        const disponibilites = await Disponibilite.find({ shiftId });
+
+        // Supprimer les disponibilités
         const deletedDisponibilites = await Disponibilite.deleteMany({ shiftId });
 
         res.status(200).json({
@@ -145,18 +196,31 @@ exports.deleteDisponibilitesByShiftId = async (req, res) => {
                 : 'Aucune disponibilité trouvée avec cet shiftId.'
         });
 
-        const disponibilites = await Disponibilite.find({ shiftId });
+        // Envoyer les notifications après la suppression
+        for (const disponibilite of disponibilites) {
+            if (disponibilite.expoPushToken && disponibilite.employeeId) {
+                try {
+                    const employee = await Employe.findById(disponibilite.employeeId).select('role');
+                    let screen = '';
 
-        disponibilites.forEach((disponibilite) => {
-            if (disponibilite.expoPushToken) {
-                sendPushNotification(
-                    disponibilite.expoPushToken,
-                    `Your availability on ${disponibilite.selectedDay} has been deleted.`
-                ).catch((notificationError) => {
-                    console.error('Erreur lors de l\'envoi de la notification push:', notificationError);
-                });
+                    if (employee?.role === 'manager') {
+                        screen = '(manager)/(tabs)/(RH)/EmployeesAvaibilities';
+                    } else if (employee?.role === 'driver') {
+                        screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
+                    }
+
+                    const notificationBody = `Your availability on ${disponibilite.selectedDay} has been deleted.`;
+
+                    await sendPushNotification(
+                        disponibilite.expoPushToken,
+                        notificationBody,
+                        screen
+                    );
+                } catch (error) {
+                    console.error('Erreur lors de l\'envoi de la notification push:', error);
+                }
             }
-        });
+        }
 
     } catch (err) {
         res.status(500).json({ error: 'Erreur lors de la suppression des disponibilités.', details: err.message });
@@ -167,14 +231,22 @@ exports.deleteDisponibilitesByShiftId = async (req, res) => {
 
 
 
+
 // Mettre à jour plusieurs disponibilités
 exports.updateMultipleDisponibilites = async (req, res) => {
     const { decisions } = req.body; // Tableau de décisions avec employeeId, selectedDay, shiftId, et status
     try {
         const Disponibilite = req.connection.models.Disponibilite;
+        let Employe = req.connection.models.Employee;
 
         if (!Disponibilite) {
             return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible dans la connexion actuelle.' });
+        }
+
+        // Charger dynamiquement le modèle Employe si nécessaire
+        if (!Employe) {
+            const employeeSchema = require('../../Employes-api/models/Employee');
+            Employe = req.connection.model('Employee', employeeSchema);
         }
 
         const updatePromises = decisions.map(async (decision) => {
@@ -190,13 +262,27 @@ exports.updateMultipleDisponibilites = async (req, res) => {
                 { new: true, runValidators: true }
             );
 
-            if (updatedDisponibilite?.expoPushToken) {
-                sendPushNotification(
-                    updatedDisponibilite.expoPushToken,
-                    `Your availability for ${updatedDisponibilite.selectedDay} has been updated with the status: ${decision.status}.`
-                ).catch((notificationError) => {
-                    console.error('Erreur lors de l\'envoi de la notification push:', notificationError);
-                });
+            if (updatedDisponibilite?.expoPushToken && decision.employeeId) {
+                try {
+                    const employee = await Employe.findById(decision.employeeId).select('role');
+                    let screen = '';
+
+                    if (employee?.role === 'manager') {
+                        screen = '(manager)/(tabs)/(RH)/EmployeesAvaibilities';
+                    } else if (employee?.role === 'driver') {
+                        screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
+                    }
+
+                    const notificationBody = `Your availability for ${updatedDisponibilite.selectedDay} has been ${decision.status}.`;
+
+                    await sendPushNotification(
+                        updatedDisponibilite.expoPushToken,
+                        notificationBody,
+                        screen
+                    );
+                } catch (error) {
+                    console.error('Erreur lors de l\'envoi de la notification push:', error);
+                }
             }
 
             return updatedDisponibilite;
@@ -213,6 +299,7 @@ exports.updateMultipleDisponibilites = async (req, res) => {
         res.status(500).json({ error: 'Erreur lors de la mise à jour des disponibilités.', details: err.message });
     }
 };
+
 
 
 
@@ -268,23 +355,29 @@ exports.getDisponibilitesByEmployeeAndDay = async (req, res) => {
 // Bulk update disponibilites confirmation
 exports.updateMultipleDisponibilitesConfirmation = async (req, res) => {
     const { confirmations } = req.body;
+
     try {
         const Disponibilite = req.connection.models.Disponibilite;
+        let Employe = req.connection.models.Employee;
 
         if (!Disponibilite) {
             return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible dans la connexion actuelle.' });
         }
 
+        // Charger dynamiquement le modèle Employe si nécessaire
+        if (!Employe) {
+            const employeeSchema = require('../../Employes-api/models/Employee');
+            Employe = req.connection.model('Employee', employeeSchema);
+        }
+
         const updatePromises = confirmations.map(async (confirmation) => {
             try {
-                // 🔥 Vérifier si presence existe dans la DB pour cette disponibilité
                 const dispo = await Disponibilite.findOne({
                     employeeId: confirmation.employeeId,
                     selectedDay: confirmation.selectedDay,
                     shiftId: confirmation.shiftId
                 });
 
-                // 🔥 Si presence existe, on le supprime de la DB
                 if (dispo && 'presence' in dispo) {
                     await Disponibilite.updateOne(
                         {
@@ -292,12 +385,11 @@ exports.updateMultipleDisponibilitesConfirmation = async (req, res) => {
                             selectedDay: confirmation.selectedDay,
                             shiftId: confirmation.shiftId
                         },
-                        { $unset: { presence: "" } } // 🔥 Supprimer presence
+                        { $unset: { presence: "" } }
                     );
                 }
 
-                // 🔥 Faire ensuite l'update pour confirmation et seen
-                return await Disponibilite.findOneAndUpdate(
+                const updatedDispo = await Disponibilite.findOneAndUpdate(
                     {
                         employeeId: confirmation.employeeId,
                         selectedDay: confirmation.selectedDay,
@@ -310,6 +402,31 @@ exports.updateMultipleDisponibilitesConfirmation = async (req, res) => {
                     { new: true, runValidators: true }
                 );
 
+                // 🔔 Envoi de notification avec le token de l'employé
+                if (confirmation.employeeId) {
+                    const employee = await Employe.findById(confirmation.employeeId).select('role expoPushToken');
+
+                    if (employee?.expoPushToken) {
+                        let screen = '';
+
+                        if (employee.role === 'manager') {
+                            screen = '(manager)/(tabs)/(Dispatcher)/Confirmation.tsx';
+                        } else if (employee.role === 'driver') {
+                            screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
+                        }
+
+                        const statusMessage = `🚨 Urgent: Verify your shift for ${updatedDispo.selectedDay} as it needs your immediate action.`;
+
+                        await sendPushNotification(
+                            employee.expoPushToken,
+                            statusMessage,
+                            screen
+                        );
+                    }
+                }
+
+                return updatedDispo;
+
             } catch (err) {
                 console.error('Erreur lors de la vérification et mise à jour:', err);
                 return null;
@@ -320,22 +437,12 @@ exports.updateMultipleDisponibilitesConfirmation = async (req, res) => {
 
         res.status(200).json({ message: 'Disponibilites updated successfully', updatedDisponibilites });
 
-
-        updatedDisponibilites.forEach((disponibilite) => {
-            if (disponibilite?.expoPushToken) {
-                // 🔥 Message personnalisé avec la date et urgence
-                const statusMessage = `⚠️ The dispo (${disponibilite.selectedDay}) needs your immediate attention. Check your homepage NOW!`;
-
-                sendPushNotification(disponibilite.expoPushToken, statusMessage).catch((notificationError) => {
-                    console.error('Erreur lors de l\'envoi de la notification push:', notificationError);
-                });
-            }
-        });
-
     } catch (err) {
         res.status(500).json({ error: 'Erreur lors de la mise à jour des disponibilités.', details: err.message });
     }
 };
+
+
 
 
 // Update the presence of a disponibilite by ID
@@ -351,8 +458,7 @@ exports.updateDisponibilitePresenceById = async (req, res) => {
         // 🔥 Check if Employee model is initialized
         let Employee = req.connection.models.Employee;
         if (!Employee) {
-            // 🔥 Dynamically require and initialize the Employee model
-            const employeeSchema = require('../../Employes-api/models/Employee'); // Adjust the path if necessary
+            const employeeSchema = require('../../Employes-api/models/Employee');
             Employee = req.connection.model('Employee', employeeSchema);
         }
 
@@ -363,8 +469,8 @@ exports.updateDisponibilitePresenceById = async (req, res) => {
             { new: true, runValidators: true }
         );
 
-        // ✅ Manually fetch employee details
-        const employee = await Employee.findOne({ _id: disponibilite.employeeId }).select('name familyName');
+        // ✅ Fetch employee details
+        const employee = await Employee.findById(disponibilite.employeeId).select('name familyName');
 
         // ✅ Emit real-time update via Socket.IO
         const io = req.app.get('socketio');
@@ -373,17 +479,19 @@ exports.updateDisponibilitePresenceById = async (req, res) => {
             presence: disponibilite.presence
         });
 
-        // ✅ 🔥 Check if presence is NOT confirmed
+        // ✅ 🔥 If presence is NOT confirmed, notify managers
         if (disponibilite.presence !== 'confirmed') {
-
-            // 🔥 Fetch managers from the Employee collection
             const managers = await Employee.find({ role: 'manager' }).select('expoPushToken');
 
-            // ✅ Send notifications to all managers with expoPushToken
             for (const manager of managers) {
                 if (manager.expoPushToken) {
                     const notificationBody = `${employee?.name} ${employee?.familyName} has declined to work on ${disponibilite.selectedDay}.`;
-                    await sendPushNotification(manager.expoPushToken, notificationBody);
+
+                    await sendPushNotification(
+                        manager.expoPushToken,
+                        notificationBody,
+                        '(manager)/(tabs)/(Dispatcher)/Confirmation.tsx'
+                    );
                 }
             }
         }
@@ -395,6 +503,7 @@ exports.updateDisponibilitePresenceById = async (req, res) => {
         res.status(500).json({ error: 'Error updating presence.', details: err.message });
     }
 };
+
 
 
 

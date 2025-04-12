@@ -18,6 +18,9 @@ const disponibiliteSchema = new mongoose.Schema({
   shiftId: { type: String, required: true },
   decisions: { type: String, default: 'pending' },
   expoPushToken: { type: String },
+  // confirmation: { type: String }, // Confirmation (optionnel)
+  // presence: { type: String }, // Présence (optionnel)
+  // seen: {type:Boolean}
 });
 
 const Disponibilite = mongoose.models.Disponibilite || mongoose.model('Disponibilite', disponibiliteSchema);
@@ -25,8 +28,8 @@ const Disponibilite = mongoose.models.Disponibilite || mongoose.model('Disponibi
 // Générer les dates du 23 au 29 mars 2025
 function generateDates() {
   const dates = [];
-  const start = new Date('2025-03-23');
-  const end = new Date('2025-03-30');
+  const start = new Date('2025-04-6');
+  const end = new Date('2025-04-13');
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dayStr = d.toDateString(); // Ex: "Sun Mar 23 2025"
@@ -39,9 +42,9 @@ function generateDates() {
 async function createDisponibilitesForAllEmployees() {
   try {
     const employees = await Employe.find();
-    const shifts = await Shift.find();
-    console.log("employees :"+employees)
-    console.log("shifts "+shifts)
+    const shifts = await Shift.find({ visible: true });
+    console.log("employees :" + employees)
+    console.log("shifts " + shifts)
 
     if (shifts.length === 0) {
       console.error('❌ Aucun shift trouvé.');
@@ -65,13 +68,32 @@ async function createDisponibilitesForAllEmployees() {
             selectedDay: dateStr,
             shiftId: randomShift._id.toString(),
             decisions: 'pending',
+            // confirmation: 'confirmed',
+            // seen: true,
+            // presence: 'confirmed',
             expoPushToken: emp.expoPushToken || null,
           });
 
           await newDispo.save();
           console.log(`✅ Dispo ajoutée pour ${emp.name} le ${dateStr} - Shift: ${randomShift.name}`);
         } else {
-          console.log(`⚠️ Déjà existante pour ${emp.name} le ${dateStr}`);
+          // Supprimer l'ancienne dispo
+          await Disponibilite.deleteOne({
+            employeeId: emp._id.toString(),
+            selectedDay: dateStr,
+          });
+
+          // En créer une nouvelle avec un nouveau shift
+          const newDispo = new Disponibilite({
+            employeeId: emp._id.toString(),
+            selectedDay: dateStr,
+            shiftId: randomShift._id.toString(),
+            decisions: 'pending',
+            expoPushToken: emp.expoPushToken || null,
+          });
+
+          await newDispo.save();
+          console.log(`♻️ Dispo remplacée pour ${emp.name} le ${dateStr} - Nouveau shift: ${randomShift.name}`);
         }
       }
     }
