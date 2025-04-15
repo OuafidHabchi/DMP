@@ -12,9 +12,11 @@ const worningSchema = new mongoose.Schema({
     read: { type: Boolean, default: false },
     signature: { type: Boolean, default: false },
     photo: { type: String }, // Le chemin du fichier sera stocké ici
-    template:{ type: Boolean },
-    susNombre: {type:String},
-
+    template: { type: Boolean },
+    susNombre: {
+        type: [String], // Ceci stockera un tableau d'IDs de disponibilités suspendues
+        default: []
+    },
 });
 
 module.exports = worningSchema;

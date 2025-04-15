@@ -88,6 +88,48 @@ exports.getDisponibiliteById = async (req, res) => {
     }
 };
 
+// Récupérer plusieurs disponibilités par leurs IDs avec les infos du shift
+exports.getDisponibilitesByIdsForWarning = async (req, res) => {
+    try {
+        const Disponibilite = req.connection.models.Disponibilite;
+        const Shift = req.connection.models.Shift;
+
+        if (!Disponibilite || !Shift) {
+            return res.status(500).json({
+                error: 'Modèles non disponibles dans la connexion actuelle.'
+            });
+        }
+
+        const ids = req.query.ids?.split(',') || [];
+
+        if (ids.length === 0) {
+            return res.status(500).json({ error: 'Aucun ID fourni.' });
+        }
+
+        // Récupérer les disponibilités
+        const disponibilites = await Disponibilite.find({ _id: { $in: ids } });
+
+        // Pour chaque disponibilité, récupérer les infos du shift
+        const disponibilitesAvecShifts = await Promise.all(
+            disponibilites.map(async (dispo) => {
+                const shift = await Shift.findById(dispo.shiftId);
+                return {
+                    ...dispo.toObject(),
+                    shiftName: shift?.name || 'Shift inconnu',
+                    shiftColor: shift?.color || '#000000',
+                    shiftTimes: shift ? `${shift.starttime} - ${shift.endtime}` : 'Horaires inconnus'
+                };
+            })
+        );
+        res.status(200).json(disponibilitesAvecShifts);
+    } catch (err) {
+        console.error('Erreur:', err);
+        res.status(500).json({
+            error: 'Erreur lors de la récupération des disponibilités.',
+            details: err.message
+        });
+    }
+};
 
 
 
@@ -570,10 +612,11 @@ exports.getDisponibilitesAfterDate = async (req, res) => {
 
         // Charger dynamiquement le modèle Disponibilite
         const Disponibilite = req.connection.models.Disponibilite;
+        const Shift = req.connection.models.Shift;
 
-        if (!Disponibilite) {
+        if (!Disponibilite || !Shift) {
             return res.status(500).json({
-                message: 'Disponibilite model is not available in the current connection.',
+                message: 'Required models are not available in the current connection.',
             });
         }
 
@@ -597,8 +640,18 @@ exports.getDisponibilitesAfterDate = async (req, res) => {
 
         // Trier les résultats par date croissante
         disponibilitesFiltrees.sort((a, b) => new Date(a.selectedDay) - new Date(b.selectedDay));
+        // Associer les détails de shift pour chaque dispo
+        const disponibilitesAvecShifts = await Promise.all(
+            disponibilitesFiltrees.map(async (dispo) => {
+                const shiftDetails = await Shift.findById(dispo.shiftId);
+                return {
+                    ...dispo.toObject(),
+                    shiftDetails,
+                };
+            })
+        );
 
-        res.status(200).json(disponibilitesFiltrees);
+        res.status(200).json(disponibilitesAvecShifts);
     } catch (err) {
         res.status(500).json({ error: 'An error occurred while fetching disponibilites.' });
     }
@@ -680,3 +733,63 @@ exports.updateDisponibiliteSeen = async (req, res) => {
         res.status(500).json({ error: 'Erreur lors de la mise à jour du statut seen.', details: err.message });
     }
 };
+
+// Ajouter la suspension
+exports.suspendDisponibilites = async (req, res) => {
+
+    try {
+        const Disponibilite = req.connection.models.Disponibilite;
+        const { disponibiliteIds = [] } = req.body;
+
+        if (disponibiliteIds.length === 0) {
+            return res.status(500).json({ error: 'Aucun ID fourni.' });
+        }
+
+        const result = await Disponibilite.updateMany(
+            { _id: { $in: disponibiliteIds } },
+            { $set: { suspension: true } }
+        );
+
+
+        res.status(200).json({ success: true, message: 'Dispos suspendues.' });
+    } catch (err) {
+        res.status(500).json({ error: 'Erreur lors de la suspension.', details: err.message });
+    }
+};
+
+exports.unsuspendDisponibilites = async (req, res) => {
+    try {
+        const Disponibilite = req.connection.models.Disponibilite;
+        const { disponibiliteIds = [] } = req.body;
+
+        // Sécurisation des IDs mal encodés
+        let idsToUse = disponibiliteIds.flatMap(id => {
+            try {
+                if (typeof id === 'string' && id.startsWith('[')) {
+                    return JSON.parse(id);
+                } else {
+                    return [id];
+                }
+            } catch (e) {
+                console.error("❌ Mauvais format d'ID à parser:", id);
+                return [];
+            }
+        });
+
+
+        if (idsToUse.length === 0) {
+            return res.status(500).json({ error: 'Aucun ID valide fourni.' });
+        }
+
+        const result = await Disponibilite.updateMany(
+            { _id: { $in: idsToUse } },
+            { $set: { suspension: false } }
+        );
+
+        res.status(200).json({ success: true, message: 'Dispos réactivées.' });
+    } catch (err) {
+        res.status(500).json({ error: 'Erreur lors de la désactivation.', details: err.message });
+    }
+};
+
+

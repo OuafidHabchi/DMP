@@ -8,10 +8,9 @@ exports.createRequestAccess = async (req, res) => {
       firstName,
       lastName,
       email,
-      dspName,
+      DAnumber,
       dspShortCode,
       stationCode,
-      stationAddress,
       heardAboutUs,
       heardAboutUsDSP,
     } = req.body;
@@ -26,10 +25,9 @@ exports.createRequestAccess = async (req, res) => {
       firstName,
       lastName,
       email,
-      dspName,
-      dspShortCode: heardAboutUs === 'Referred by DSP' ? dspShortCode : null,
+      DAnumber,
+      dspShortCode,
       stationCode,
-      stationAddress,
       heardAboutUs,
       heardAboutUsDSP: heardAboutUs === 'Referred by DSP' ? heardAboutUsDSP : null,
     });
@@ -58,10 +56,9 @@ exports.createRequestAccess = async (req, res) => {
     <h3>Nouvelle demande d'accès reçue :</h3>
     <p><strong>Nom complet :</strong> ${firstName} ${lastName}</p>
     <p><strong>Email de l'utilisateur :</strong> ${email}</p>
-    <p><strong>Nom du DSP :</strong> ${dspName}</p>
+    <p><strong>DA number :</strong> ${DAnumber}</p>
     ${dspShortCode ? `<p><strong>Code court du DSP :</strong> ${dspShortCode}</p>` : ''}
-    <p><strong>Code de la station :</strong> ${stationCode}</p>
-    <p><strong>Adresse de la station :</strong> ${stationAddress}</p>
+    <p><strong>Code de la station oul'adress :</strong> ${stationCode}</p>
     <p><strong>Comment avez-vous entendu parler de nous ? :</strong> ${heardAboutUs}</p>
     ${heardAboutUsDSP ? `<p><strong>DSP référent :</strong> ${heardAboutUsDSP}</p>` : ''}
     <hr>

@@ -56,6 +56,7 @@ exports.createWorning = async (req, res) => {
             template,
             susNombre,
         } = req.body;
+        console.log(req.body);
 
         const Worning = req.connection.models.Worning;
         let Employe = req.connection.models.Employee; // ✅ Vérifier le modèle `Employee`
@@ -88,7 +89,7 @@ exports.createWorning = async (req, res) => {
         // Sauvegarde du warning dans la base de données
         const savedWorning = await newWorning.save();
 
-       
+
         // Envoi d'une notification si un token Expo est fourni
         if (expoPushToken) {
             const employeeConcerned = await Employe.findById(employeID).select('role expoPushToken name');
@@ -96,16 +97,16 @@ exports.createWorning = async (req, res) => {
                 console.log("Employé non trouvé");
                 return res.status(200).json(savedWorning);
             }
-    
-            const targetScreen = employeeConcerned.role === 'manager' 
-                ? '(manager)/(tabs)/(RH)/Warnings' 
+
+            const targetScreen = employeeConcerned.role === 'manager'
+                ? '(manager)/(tabs)/(RH)/Warnings'
                 : '(driver)/(tabs)/(Employe)/EmployeeWarnings';
 
-                const notificationBody = `You have received a new ${type}. Open the app for more details.`;
+            const notificationBody = `You have received a new ${type}. Open the app for more details.`;
             try {
                 await sendPushNotification(expoPushToken, notificationBody, targetScreen);
             } catch (error) {
-                
+
             }
         }
 
@@ -250,7 +251,7 @@ exports.checkSuspensionsForEmployees = async (req, res) => {
 };
 
 // Obtenir tous les warnings avec template === true
-exports.getTemplateWarnings = async (req, res) => {    
+exports.getTemplateWarnings = async (req, res) => {
     try {
         const Worning = req.connection.models.Worning;
 

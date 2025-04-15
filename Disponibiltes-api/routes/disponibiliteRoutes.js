@@ -5,7 +5,7 @@ const router = express.Router();
 
 // Middleware pour spécifier le modèle nécessaire
 router.use((req, res, next) => {
-  req.requiredModels = ['Disponibilite'];
+  req.requiredModels = ['Disponibilite','Shift'];
   next();
 });
 
@@ -20,6 +20,7 @@ router.get('/disponibilites', disponibiliteController.getAllDisponibilites);
 
 // Récupérer une disponibilité par son ID
 router.get('/disponibilites/:id', disponibiliteController.getDisponibiliteById);
+router.get('/forWarnings/disponibilites', disponibiliteController.getDisponibilitesByIdsForWarning);
 
 // Mettre à jour une disponibilité
 router.put('/disponibilites/:id', disponibiliteController.updateDisponibilite);
@@ -58,6 +59,9 @@ router.post('/disponibilites/suspension', disponibiliteController.updateDisponib
 
 // Mettre à jour le statut `seen` d'une disponibilité
 router.put('/disponibilites/:id/seen', disponibiliteController.updateDisponibiliteSeen);
+
+router.post('/disponibilites/Update/suspension', disponibiliteController.suspendDisponibilites);
+router.post('/disponibilites/Update/unsuspend', disponibiliteController.unsuspendDisponibilites);
 
 
 

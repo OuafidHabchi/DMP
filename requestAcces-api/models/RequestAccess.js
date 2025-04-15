@@ -15,21 +15,15 @@ const RequestAccessSchema = new mongoose.Schema({
     required: true,
     unique: true, // Assure que l'email est unique
   },
-  dspName: {
-    type: String,
+  DAnumber: {
+    type: Number,
     required: true,
   },
   dspShortCode: {
     type: String,
-    required: function () {
-      return this.heardAboutUs === 'Referred by DSP'; // Conditionnellement requis
-    },
-  },
-  stationCode: {
-    type: String,
     required: true,
   },
-  stationAddress: {
+  stationCode: {
     type: String,
     required: true,
   },
