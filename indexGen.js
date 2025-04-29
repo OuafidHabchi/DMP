@@ -32,6 +32,9 @@ app.use('/uploads-wornings', express.static(path.join(__dirname, 'Warnings-api/u
 
 app.use('/uploads-timecard', express.static(path.join(__dirname, 'TimeCard-api/timecarduploads')));
 
+app.use('/uploadsFacture', express.static(path.join(__dirname, 'factures-api/uploadsFacture')))
+
+
 const connectToDSP = require('./DSPListe-api/config/database');
 const {loadInitialDatabaseMap } = require('./DSPListe-api/services/dspService');
 
@@ -94,6 +97,7 @@ const dspRoutes = require('./DSPListe-api/routes/dspRoutes');
 const contactRoutes = require('./Contacts-api/routes/contactRoutes');
 const invitationRoutes = require('./Invitation-api/routes/invitationsRoutes');
 const RequestAccessRoutes = require('./requestAcces-api/routes/requestAccessRoutes');
+const FacturesRoutes = require('./Factures-api/routes/factureRoutes')
 
 
 
@@ -132,6 +136,7 @@ app.use('/api/dspliste', dspRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/RequestAccessRoutes', RequestAccessRoutes);
+app.use('/api/factures', FacturesRoutes);
 
 
 

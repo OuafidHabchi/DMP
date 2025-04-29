@@ -37,3 +37,10 @@ router.patch('/mark-as-read', dailyNoteController.markAsRead);
 router.get('/details/:noteId', dailyNoteController.getNoteDetails);
 
 module.exports = router;
+
+
+
+
+
+
+

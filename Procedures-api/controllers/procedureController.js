@@ -30,7 +30,6 @@ exports.getProcedureById = async (req, res) => {
 
 
 // Créer une nouvelle procédure
-// Créer une nouvelle procédure
 exports.createProcedure = async (req, res) => {
     try {
         const Procedure = req.connection.models.Procedure;

@@ -29,6 +29,7 @@ const QuizAssignment = require ('../Quiz-api/models/quizAssignmentSchema')
 const Contact = require ('../Contacts-api/models/contactModel')
 const Invitation = require ('../Invitation-api/models/invitations')
 const RequestAccess = require('../requestAcces-api/models/RequestAccess')
+const Factures = require('../Factures-api/models/Facture')
 
 // Mapping des modèles
 const modelsMap = {
@@ -59,7 +60,8 @@ const modelsMap = {
   EquipmentUpdate,
   Contact,
   Invitation,
-  RequestAccess
+  RequestAccess,
+  Factures,
 };
 
 /**
