@@ -46,21 +46,21 @@ exports.createFacture = async (req, res) => {
 
 
 
-    if (Employee) {
-      const managers = await Employee.find({ role: 'manager' }).select('expoPushToken');
-      // Récupération des informations du créateur de la facture (nom, prénom)
-      const creator = await Employee.findById(facture.createdBy).select('name familyName');
+    // if (Employee) {
+    //   const managers = await Employee.find({ role: 'manager' }).select('expoPushToken');
+    //   // Récupération des informations du créateur de la facture (nom, prénom)
+    //   const creator = await Employee.findById(facture.createdBy).select('name familyName');
 
-      // ✅ Envoi des notifications aux managers ayant un expoPushToken
-      for (const manager of managers) {
-        if (manager.expoPushToken) {
-          const notificationBody = `${creator.name} ${creator.familyName} has issued a new invoice. Please check it now!`;
-          const screen = '(manager)/(tabs)/(RH)/Factures'; // ✅ Chemin du screen pour accéder à la section Factures
+    //   // ✅ Envoi des notifications aux managers ayant un expoPushToken
+    //   for (const manager of managers) {
+    //     if (manager.expoPushToken) {
+    //       const notificationBody = `${creator.name} ${creator.familyName} has issued a new invoice. Please check it now!`;
+    //       const screen = '(manager)/(tabs)/(RH)/Factures'; // ✅ Chemin du screen pour accéder à la section Factures
 
-          await sendPushNotification(manager.expoPushToken, notificationBody, screen);
-        }
-      }
-    }
+    //       await sendPushNotification(manager.expoPushToken, notificationBody, screen);
+    //     }
+    //   }
+    // }
 
     res.status(200).json({
       success: true,
