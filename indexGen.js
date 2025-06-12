@@ -32,7 +32,7 @@ app.use('/uploads-wornings', express.static(path.join(__dirname, 'Warnings-api/u
 
 app.use('/uploads-timecard', express.static(path.join(__dirname, 'TimeCard-api/timecarduploads')));
 
-app.use('/uploadsFacture', express.static(path.join(__dirname, 'factures-api/uploadsFacture')))
+app.use('/uploadsFacture', express.static(path.join(__dirname, 'Factures-api/uploadsFacture')))
 
 
 const connectToDSP = require('./DSPListe-api/config/database');
