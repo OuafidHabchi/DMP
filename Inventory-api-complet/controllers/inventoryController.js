@@ -1,4 +1,3 @@
-// GET all items
 // Récupérer tous les articles
 exports.getAllItems = async (req, res) => {
     try {
@@ -55,36 +54,47 @@ exports.createItems = async (req, res) => {
 
 
 
-// UPDATE multiple items
+// UPDATE or CREATE multiple items
 exports.updateItems = async (req, res) => {
     try {
-        const InventoryItem = req.connection.models.InventoryItem; // Modèle injecté dynamiquement
-        // Normalize the input data
+        const InventoryItem = req.connection.models.InventoryItem;
+
+        // Normalisation des types
         const normalizedUpdates = req.body.map(item => ({
             ...item,
-            type: item.type.charAt(0).toUpperCase() + item.type.slice(1).toLowerCase() // Capitalize the first letter
+            type: item.type.charAt(0).toUpperCase() + item.type.slice(1).toLowerCase()
         }));
 
-        // Perform updates
-        const updatedItems = await Promise.all(
+        const results = await Promise.all(
             normalizedUpdates.map(async (item) => {
-                // Update only the fields provided
-                const updated = await InventoryItem.findByIdAndUpdate(
-                    item.id,
-                    { $set: item },
-                    { new: true } // Return the updated document
-                );
-                if (!updated) throw new Error(`Item with ID ${item.id} not found`);
-                return updated;
+                // Vérifie si l'élément existe
+                const existingItem = await InventoryItem.findById(item.id);
+
+                if (existingItem) {
+                    // Met à jour l'élément existant
+                    return await InventoryItem.findByIdAndUpdate(
+                        item.id,
+                        { $set: item },
+                        { new: true }
+                    );
+                } else {
+                    // Crée un nouvel élément
+                    const newItemData = { ...item };
+                    delete newItemData.id; // On enlève `id` pour éviter les conflits avec _id généré
+                    const newItem = new InventoryItem(newItemData);
+                    return await newItem.save();
+                }
             })
         );
 
-        res.status(200).json({ message: "Items updated successfully", updatedItems });
+        res.status(200).json({ message: "Items updated or created successfully", results });
     } catch (err) {
-        
+        console.error("Error updating or creating items:", err.message);
         res.status(500).json({ error: err.message });
     }
 };
+
+
 
 
 

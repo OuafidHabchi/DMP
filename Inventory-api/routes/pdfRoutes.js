@@ -15,10 +15,9 @@ if (!fs.existsSync(downloadsDir)) {
 // Route 1: Générer un rapport d'inventaire en PDF
 router.post('/generate-pdf', async (req, res) => {
     try {
-        const { vehicles = [], phones = [], batteries = [], userName = 'Unknown User',date } = req.body;
+        const { vehicles = [], phones = [], batteries = [], userName = 'Unknown User', date } = req.body;
 
         const doc = new jsPDF();
-        // const formattedDate = new Date().toISOString().split('T')[0];
         const fileName = `Inventory_${date}.pdf`;
 
         // Titre principal
@@ -49,12 +48,22 @@ router.post('/generate-pdf', async (req, res) => {
                     v.cable ? 'Yes' : 'No',
                     v.status || 'N/A',
                 ]),
+                didParseCell: function (data) {
+                    const col = data.column.index;
+                    const rowData = data.row.raw;
+
+                    if (
+                        ((col >= 1 && col <= 4) && rowData[col] === 'No') ||
+                        (col === 5 && rowData[5].toLowerCase() === 'missing')
+                    ) {
+                        data.cell.styles.textColor = [255, 0, 0];
+                    }
+                }
             });
         } else {
             doc.text('No vehicles available.', 10, vehiclesStartY + 10);
         }
 
-        // Section téléphones
         // Section téléphones
         const phonesStartY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : vehiclesStartY + 20;
         doc.setFontSize(16);
@@ -63,13 +72,24 @@ router.post('/generate-pdf', async (req, res) => {
         if (phones.length > 0) {
             doc.autoTable({
                 startY: phonesStartY + 5,
-                head: [['Name', 'Exists', 'Status', 'Comment']], // Ajout de l'en-tête "Comment"
+                head: [['Name', 'Exists', 'Status', 'Comment']],
                 body: phones.map((p) => [
                     p.name,
                     p.exists ? 'Yes' : 'No',
                     p.status || 'N/A',
-                    p.comment || 'No comment', // Ajout du champ "comment"
+                    p.comment || 'No comment',
                 ]),
+                didParseCell: function (data) {
+                    const col = data.column.index;
+                    const rowData = data.row.raw;
+
+                    if (
+                        (col === 1 && rowData[1] === 'No') ||
+                        (col === 2 && rowData[2].toLowerCase() === 'missing')
+                    ) {
+                        data.cell.styles.textColor = [255, 0, 0];
+                    }
+                }
             });
         } else {
             doc.text('No phones available.', 10, phonesStartY + 10);
@@ -83,18 +103,28 @@ router.post('/generate-pdf', async (req, res) => {
         if (batteries.length > 0) {
             doc.autoTable({
                 startY: batteriesStartY + 5,
-                head: [['Name', 'Exists', 'Status', 'Comment']], // Ajout de l'en-tête "Comment"
+                head: [['Name', 'Exists', 'Status', 'Comment']],
                 body: batteries.map((b) => [
                     b.name,
                     b.exists ? 'Yes' : 'No',
                     b.status || 'N/A',
-                    b.comment || 'No comment', // Ajout du champ "comment"
+                    b.comment || 'No comment',
                 ]),
+                didParseCell: function (data) {
+                    const col = data.column.index;
+                    const rowData = data.row.raw;
+
+                    if (
+                        (col === 1 && rowData[1] === 'No') ||
+                        (col === 2 && rowData[2].toLowerCase() === 'missing')
+                    ) {
+                        data.cell.styles.textColor = [255, 0, 0];
+                    }
+                }
             });
         } else {
             doc.text('No batteries available.', 10, batteriesStartY + 10);
         }
-
 
         // Sauvegarde du PDF
         const pdfPath = path.join(downloadsDir, fileName);

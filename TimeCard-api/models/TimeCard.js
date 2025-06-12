@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const { type } = require('os');
 
 const timeCardSchema = new mongoose.Schema({
   employeeId: {
@@ -12,11 +11,9 @@ const timeCardSchema = new mongoose.Schema({
   },
   startTime: {
     type: String,
-    
   },
   endTime: {
     type: String,
-    
   },
   tel:{
     type: String,

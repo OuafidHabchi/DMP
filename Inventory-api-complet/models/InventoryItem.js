@@ -9,6 +9,7 @@ const inventoryItemSchema = new mongoose.Schema({
     cable: { type: Boolean, default: false }, // Specific to Vehicles
     exists: { type: Boolean, default: false }, // Specific to Phones and Batteries
     status: { type: String, default: "" },
+    comment: { type: String, default: "" },
 });
 
 module.exports = inventoryItemSchema; // Exporter le schéma pour un modèle dynamique
