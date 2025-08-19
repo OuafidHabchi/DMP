@@ -30,6 +30,8 @@ const Contact = require ('../Contacts-api/models/contactModel')
 const Invitation = require ('../Invitation-api/models/invitations')
 const RequestAccess = require('../requestAcces-api/models/RequestAccess')
 const Factures = require('../Factures-api/models/Facture')
+const Process = require('../hiring-process-api/models/processSchema')
+const Candidate = require('../candidature-api/models/candidateSchema')
 
 // Mapping des modèles
 const modelsMap = {
@@ -62,6 +64,8 @@ const modelsMap = {
   Invitation,
   RequestAccess,
   Factures,
+  Process,
+  Candidate,
 };
 
 /**

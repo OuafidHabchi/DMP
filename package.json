@@ -3,6 +3,7 @@
     "start": "node indexGen.js"
   },
   "dependencies": {
+    "@fast-csv/parse": "^5.0.5",
     "bcrypt": "^5.1.1",
     "csv-parser": "^3.1.0",
     "csv-writer": "^1.6.0",
@@ -11,10 +12,13 @@
     "express": "^4.21.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
+    "mammoth": "^1.10.0",
     "mongoose": "^8.10.1",
     "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1",
     "sib-api-v3-sdk": "^8.5.0",
     "socket.io": "^4.8.0",
+    "streamifier": "^0.1.1",
     "winston": "^3.17.0"
   }
 }

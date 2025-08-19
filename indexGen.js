@@ -98,6 +98,9 @@ const contactRoutes = require('./Contacts-api/routes/contactRoutes');
 const invitationRoutes = require('./Invitation-api/routes/invitationsRoutes');
 const RequestAccessRoutes = require('./requestAcces-api/routes/requestAccessRoutes');
 const FacturesRoutes = require('./Factures-api/routes/factureRoutes')
+const DispatchManagerRoutes = require('./DIspatchManager-api/routes/DispatchManagerRoutes')
+const processRoutes = require('./hiring-process-api/routes/processRoutes');
+const candidateRoutes = require('./candidature-api/routes/candidateRoutes');
 
 
 
@@ -137,6 +140,9 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/RequestAccessRoutes', RequestAccessRoutes);
 app.use('/api/factures', FacturesRoutes);
+app.use('/api/DispatchManager', DispatchManagerRoutes);
+app.use('/api/process', processRoutes);
+app.use('/api/candidate', candidateRoutes);
 
 
 
