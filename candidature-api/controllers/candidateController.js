@@ -105,6 +105,10 @@ exports.moveCandidateToStep = async (req, res) => {
       return res.status(404).json({ error: "Candidat introuvable." });
     }
 
+    // 🔐 Toujours s'assurer que stepData existe
+    if (!candidate.stepData) candidate.stepData = {};
+
+    // Ajout entrée d'historique
     const historyEntry = {
       fromStepId: candidate.currentStepId || null,
       toStepId,
@@ -112,13 +116,21 @@ exports.moveCandidateToStep = async (req, res) => {
       by: userId
     };
 
+    // Maj step courante
     candidate.currentStepId = toStepId;
     candidate.updatedAt = new Date();
-    candidate.history.push(historyEntry);
+
+    // Fusionner les champs de l’étape
     candidate.stepData[toStepId] = {
       ...(candidate.stepData[toStepId] || {}),
       ...fieldValues
     };
+
+    // ✅ Indiquer à Mongoose que stepData (Mixed/Map) a changé
+    candidate.markModified('stepData');
+
+    // Historique en dernier
+    candidate.history.push(historyEntry);
 
     await candidate.save();
     res.status(200).json(candidate);
@@ -126,6 +138,7 @@ exports.moveCandidateToStep = async (req, res) => {
     res.status(500).json({ error: "Erreur lors du changement d'étape du candidat.", details: error.message });
   }
 };
+
 
 exports.deleteCandidate = async (req, res) => {  
   try {
@@ -141,46 +154,47 @@ exports.deleteCandidate = async (req, res) => {
   }
 };
 
-
 exports.updateCandidateFields = async (req, res) => {
   try {
     const Candidate = req.connection.models.Candidate;
-    const { toStepId, fieldValues, identity } = req.body;
+    const { toStepId, fieldValues = {}, identity } = req.body;
 
-    const candidate = await Candidate.findById(req.params.id);
+    const update = {};
+
+    if (identity && Object.keys(identity).length) {
+      for (const [k, v] of Object.entries(identity)) {
+        update[`identity.${k}`] = v;
+      }
+    }
+
+    if (toStepId && Object.keys(fieldValues).length) {
+      update[`stepData.${toStepId}`] = fieldValues;
+      update[`updatedAt`] = new Date();
+    }
+
+    if (!Object.keys(update).length) {
+      return res.status(400).json({ error: "Aucune donnée à mettre à jour." });
+    }
+
+    const candidate = await Candidate.findByIdAndUpdate(
+      req.params.id,
+      { $set: update },
+      { new: true, runValidators: false }
+    );
+
     if (!candidate) {
       return res.status(404).json({ error: "Candidat introuvable." });
     }
 
-    // ✅ Mise à jour de identity
-    if (identity) {
-      candidate.identity = {
-        ...candidate.identity,
-        ...identity
-      };
-    }
-
-    // ✅ Mise à jour de stepData
-    if (toStepId && fieldValues) {
-      if (!candidate.stepData) candidate.stepData = {};
-      candidate.stepData[toStepId] = {
-        ...(candidate.stepData[toStepId] || {}),
-        ...fieldValues
-      };
-
-      // 🔥 Marque le champ modifié pour forcer Mongoose à le sauvegarder
-      candidate.markModified('stepData');
-    }
-
-    await candidate.save();
-    res.status(200).json(candidate);
+    return res.status(200).json(candidate);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("🔥 Erreur updateCandidateFields:", error.message);
+    return res.status(500).json({
       error: "Erreur lors de la mise à jour du candidat.",
       details: error.message
     });
   }
 };
+
 
 
