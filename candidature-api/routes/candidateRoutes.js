@@ -20,4 +20,8 @@ router.put('/update/:id', controller.updateCandidateFields);
 
 router.delete("/:id", controller.deleteCandidate);
 
+//activer un condiadte 
+router.patch("/candidates/:id/activate", controller.activateCandidate);
+
+
 module.exports = router;

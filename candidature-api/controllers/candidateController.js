@@ -196,5 +196,43 @@ exports.updateCandidateFields = async (req, res) => {
   }
 };
 
+exports.activateCandidate = async (req, res) => {
+  try {
+    const Candidate = req.connection.models.Candidate;
+
+    // 🔹 Log des inputs
+    console.log("▶️ [activateCandidate] Input params.id:", req.params.id);
+
+    const candidate = await Candidate.findByIdAndUpdate(
+      req.params.id,
+      { $set: { activate: true, updatedAt: new Date() } },
+      { new: true }
+    );
+
+    if (!candidate) {
+      console.warn("⚠️ [activateCandidate] Aucun candidat trouvé pour id:", req.params.id);
+      return res.status(404).json({ error: "Candidat introuvable." });
+    }
+
+    // 🔹 Log de la sortie
+    console.log("✅ [activateCandidate] Candidat activé:", {
+      id: candidate._id.toString(),
+      fullName: candidate.identity?.fullName,
+      personalEmail: candidate.identity?.personalEmail,
+      activate: candidate.activate
+    });
+
+    res.status(200).json({
+      message: "Candidat activé avec succès.",
+      candidate
+    });
+  } catch (error) {
+    console.error("❌ [activateCandidate] Erreur:", error.message);
+    res.status(500).json({
+      error: "Erreur lors de l'activation du candidat.",
+      details: error.message
+    });
+  }
+};
 
 

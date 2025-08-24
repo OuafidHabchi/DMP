@@ -19,7 +19,8 @@ const candidateSchema = new mongoose.Schema({
   currentStepId: { type: String, default: null },
   stepData: { type: Object, default: {} },
   history: [HistorySchema],
-  createdBy: { type: String, required: true }
+  createdBy: { type: String, required: true },
+   activate: { type: Boolean, default: false },
 }, { timestamps: true });
 
 module.exports = candidateSchema;
