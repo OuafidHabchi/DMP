@@ -44,17 +44,14 @@ exports.updateProcess = async (req, res) => {
 exports.deleteProcess = async (req, res) => {
   try {
     const Process = req.connection.models.Process;
-    const Candidate = req.connection.models.Candidate;
 
     // ✅ Supprimer tous les processus
     await Process.deleteMany();
 
-    // ✅ Supprimer tous les candidats liés (ici : tous les candidats)
-    const result = await Candidate.deleteMany();
 
     res.status(200).json({
-      message: "Processus et candidats supprimés.",
-      deletedCandidatesCount: result.deletedCount
+      message: "Processus  supprimés.",
+      
     });
   } catch (error) {
     res.status(500).json({
