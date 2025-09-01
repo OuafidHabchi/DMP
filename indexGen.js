@@ -101,6 +101,7 @@ const FacturesRoutes = require('./Factures-api/routes/factureRoutes')
 const DispatchManagerRoutes = require('./DIspatchManager-api/routes/DispatchManagerRoutes')
 const processRoutes = require('./hiring-process-api/routes/processRoutes');
 const candidateRoutes = require('./candidature-api/routes/candidateRoutes');
+const fuelCardRoutes = require('./fuelcard-api/routes/fuelCardRoutes');
 
 
 
@@ -143,6 +144,7 @@ app.use('/api/factures', FacturesRoutes);
 app.use('/api/DispatchManager', DispatchManagerRoutes);
 app.use('/api/process', processRoutes);
 app.use('/api/candidate', candidateRoutes);
+app.use('/api/fuelcards', fuelCardRoutes);
 
 
 

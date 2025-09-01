@@ -1,3 +1,4 @@
+const { log } = require('console');
 const { sendPushNotification } = require('../../utils/notifications'); // Importer ta fonction d'envoi de notifications
 
 // Créer une disponibilité
@@ -68,6 +69,92 @@ exports.getAllDisponibilites = async (req, res) => {
         res.status(500).json({ error: 'Erreur lors de la récupération des disponibilités.', details: err.message });
     }
 };
+
+
+// Récupérer toutes les disponibilités entre deux dates (tous employés)
+// Supporte soit days[] (strings déjà formatées), soit startDate/endDate (strings "Sun Sep 01 2025")
+exports.getDisponibilitesInDateRange = async (req, res) => {
+  try {
+    const Disponibilite = req.connection.models.Disponibilite;
+    if (!Disponibilite) {
+      return res.status(500).json({ error: "Le modèle Disponibilite n'est pas disponible dans la connexion actuelle." });
+    }
+
+    let { days } = req.query;
+    const { startDate, endDate } = req.query;
+
+    // Normalise days en tableau de strings si déjà fourni (days[]=... ou days='["..."]')
+    if (days && !Array.isArray(days)) {
+      try { days = JSON.parse(days); } catch { days = [days]; }
+    }
+
+    // Si pas de days fournis, on fabrique la liste à partir de start/end (strings type "Sun Sep 01 2025")
+    if (!days && startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      // Sécurise contre DST : travaille à midi local
+      start.setHours(12, 0, 0, 0);
+      end.setHours(12, 0, 0, 0);
+
+      const arr = [];
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        arr.push(new Date(d).toDateString()); // => "Wed Sep 03 2025"
+      }
+      days = arr;
+    }
+
+    if (!days || !days.length) {
+      return res.status(200).json([]); // rien à filtrer
+    }
+
+    // Construit le filtre : selectedDay est string => $in sur des strings
+    const filter = { selectedDay: { $in: days } };
+    
+
+    const disponibilites = await Disponibilite.find(filter);
+    return res.status(200).json(disponibilites);
+  } catch (err) {
+    return res.status(500).json({ error: "Erreur lors de la récupération des disponibilités.", details: err.message });
+  }
+};
+
+
+
+exports.getDisponibilitesByEmployeeAndDateRange = async (req, res) => {
+  const { employeeId } = req.params;
+  const { startDate, endDate } = req.body;
+
+  try {
+    const Disponibilite = req.connection.models.Disponibilite;
+
+    if (!Disponibilite) {
+      return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible.' });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Convertir en toDateString pour correspondre au format de la BDD
+    const disponibilites = await Disponibilite.find({
+      employeeId,
+      decisions: 'accepted'
+    });
+
+    const filtered = disponibilites.filter(d => {
+      const dispoDate = new Date(d.selectedDay); // "Wed Sep 03 2025"
+      return dispoDate >= start && dispoDate <= end;
+    });
+
+    // Trier les résultats par date croissante
+    filtered.sort((a, b) => new Date(a.selectedDay) - new Date(b.selectedDay));
+
+    res.status(200).json(filtered);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la récupération des disponibilités.', details: err.message });
+  }
+};
+
 
 
 
@@ -452,7 +539,7 @@ exports.updateMultipleDisponibilitesConfirmation = async (req, res) => {
                         let screen = '';
 
                         if (employee.role === 'manager') {
-                            screen = '(manager)/(tabs)/(Dispatcher)/Confirmation.tsx';
+                            screen = '(manager)/(tabs)/(Dispatcher)/Confirmation';
                         } else if (employee.role === 'driver') {
                             screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
                         }
@@ -532,7 +619,7 @@ exports.updateDisponibilitePresenceById = async (req, res) => {
                     await sendPushNotification(
                         manager.expoPushToken,
                         notificationBody,
-                        '(manager)/(tabs)/(Dispatcher)/Confirmation.tsx'
+                        '(manager)/(tabs)/(Dispatcher)/Confirmation'
                     );
                 }
             }
@@ -791,5 +878,5 @@ exports.unsuspendDisponibilites = async (req, res) => {
         res.status(500).json({ error: 'Erreur lors de la désactivation.', details: err.message });
     }
 };
-  
+
 

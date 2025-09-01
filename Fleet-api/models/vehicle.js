@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const vehicleSchema = new mongoose.Schema({
     vehicleNumber: { type: String, required: true },
-    model: { type: String, required: true },
-    type: { type: String, required: true },
-    geotab: { type: String, required: true },
+    model: { type: String, },
+    type: { type: String, },
+    geotab: { type: String,},
     vin: { type: String, required: true },
     license: { type: String, required: true },
     Location: { type: String },

@@ -32,6 +32,8 @@ const RequestAccess = require('../requestAcces-api/models/RequestAccess')
 const Factures = require('../Factures-api/models/Facture')
 const Process = require('../hiring-process-api/models/processSchema')
 const Candidate = require('../candidature-api/models/candidateSchema')
+const FuelCard = require('../fuelcard-api/models/FuelCard');
+
 
 // Mapping des modèles
 const modelsMap = {
@@ -66,6 +68,7 @@ const modelsMap = {
   Factures,
   Process,
   Candidate,
+  FuelCard,
 };
 
 /**

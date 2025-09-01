@@ -337,7 +337,7 @@ exports.getEmployeeEquipmentsByDate = async (req, res) => {
     const phoneIds = [...new Set(timecards.map(tc => tc.tel))].filter(id => !!id && mongoose.Types.ObjectId.isValid(id));
     const powerBankIds = [...new Set(timecards.map(tc => tc.powerbank))].filter(id => !!id && mongoose.Types.ObjectId.isValid(id));
 
-    // 3. Charger les documents liés
+    // 3. Charger les Documents liés
     const employees = await Employee.find({ _id: { $in: employeeIds } });
     const phones = await Phone.find({ _id: { $in: phoneIds } });
     const powerBanks = await PowerBank.find({ _id: { $in: powerBankIds } });

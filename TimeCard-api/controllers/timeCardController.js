@@ -6,7 +6,7 @@ const { sendPushNotification } = require('../../utils/notifications'); // Import
 exports.createTimeCard = async (req, res) => {
   try {
     const TimeCard = req.connection.models.TimeCard; // Utilisation du modèle dynamique
-    const { employeeId, day, startTime = null, endTime = null, tel = '', powerbank = '', lastDelivery = '' } = req.body;
+    const { employeeId, day, startTime = null, endTime = null, tel = '', powerbank = '', lastDelivery = '',fuelCard='' } = req.body;
 
     // Ensure day is specified (could set today as default if it’s for current day)
     const today = day || new Date().toDateString();
@@ -23,7 +23,8 @@ exports.createTimeCard = async (req, res) => {
       endTime,
       tel,
       powerbank,
-      lastDelivery
+      lastDelivery,
+      fuelCard
     });
 
     await newTimeCard.save();
@@ -131,6 +132,7 @@ exports.updateOrCreateTimeCard = async (req, res) => {
       if (updateFields.tel !== undefined) timeCard.tel = updateFields.tel;
       if (updateFields.powerbank !== undefined) timeCard.powerbank = updateFields.powerbank;
       if (updateFields.lastDelivery !== undefined) timeCard.lastDelivery = updateFields.lastDelivery;
+      if (updateFields.fuelCard !== undefined) timeCard.fuelCard = updateFields.fuelCard;
 
       // Sauvegarder les modifications
       await timeCard.save();
@@ -144,6 +146,7 @@ exports.updateOrCreateTimeCard = async (req, res) => {
         tel: updateFields.tel || null,
         powerbank: updateFields.powerbank || null,
         lastDelivery: updateFields.lastDelivery || null,
+        fuelCard: updateFields.fuelCard || null,
       });
 
       await timeCard.save();
@@ -313,33 +316,31 @@ exports.uploadTimeCardImage = async (req, res) => {
 
 exports.getConsolidatedTimeCards = async (req, res) => {  
   try {
-    const { date } = req.params; // ✅ correction ici
+    const { date } = req.params;
     const models = req.connection.models;
-    // 1. Récupérer les assignations de véhicules pour la date
-    const vanAssignmentsPromise = models.VanAssignment.find({ date }) || [];
 
-    // 2. Récupérer les employés concernés
-    const vanAssignments = await vanAssignmentsPromise;
+    // 1) Assignations pour la date
+    const vanAssignments = await (models.VanAssignment.find({ date }) || []);
     const employeeIds = vanAssignments.map(a => a.employeeId);
 
-    // 3. Récupérer les disponibilités confirmées avant Promise.all
-    const disponibilities = await models.Disponibilite.find({
+    // 2) Disponibilités confirmées
+    const disponibilities = await (models.Disponibilite.find({
       selectedDay: new Date(date).toDateString(),
       confirmation: "confirmed",
       presence: "confirmed",
       employeeId: { $in: employeeIds }
-    }) || [];
+    }) || []);
 
-    // 4. Définir shiftIds à partir des disponibilités
     const shiftIds = [...new Set(disponibilities.map(d => d.shiftId))];
 
-    // 5. Effectuer plusieurs requêtes en parallèle
+    // 3) Parallèle: employés, shifts, vans, timecards, devices, fuel cards
     const [
       employees,
       shifts,
       vans,
       timeCards,
-      [functionalPhones, functionalPowerBanks]
+      [functionalPhones, functionalPowerBanks],
+      functionalFuelCards
     ] = await Promise.all([
       models.Employee.find({ _id: { $in: employeeIds } }) || [],
       models.Shift.find({ _id: { $in: shiftIds } }) || [],
@@ -348,10 +349,18 @@ exports.getConsolidatedTimeCards = async (req, res) => {
       Promise.all([
         models.Phone.find({ functional: true }),
         models.PowerBank.find({ functional: true })
-      ])
+      ]),
+      models.FuelCard.find({ functional: true }) || []     // ⬅️ NOUVEAU
     ]);
 
-    // Structurer la réponse finale
+    // (optionnel) ids déjà utilisés ce jour-là
+    const usedFuelCardIds = [
+      ...new Set(
+        (timeCards.map(tc => tc.fuelCard).filter(Boolean))
+      )
+    ];
+
+    // 4) Structurer la réponse
     const response = {
       employees: employees.reduce((acc, emp) => ({ ...acc, [emp._id]: emp }), {}),
       shifts: shifts.reduce((acc, shift) => ({ ...acc, [shift._id]: shift }), {}),
@@ -360,7 +369,9 @@ exports.getConsolidatedTimeCards = async (req, res) => {
       timeCards,
       vanAssignments,
       functionalPhones,
-      functionalPowerBanks
+      functionalPowerBanks,
+      functionalFuelCards,    // ⬅️ NOUVEAU
+      usedFuelCardIds         // ⬅️ OPTIONNEL (si tu veux t’en servir côté front)
     };
 
     res.status(200).json(response);
@@ -373,4 +384,5 @@ exports.getConsolidatedTimeCards = async (req, res) => {
     });
   }
 };
+
 

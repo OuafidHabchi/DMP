@@ -24,6 +24,9 @@ const timeCardSchema = new mongoose.Schema({
   lastDelivery:{
     type: String,
   },
+  fuelCard:{
+    type: String,
+  },
   CortexDuree:{
     type: String,
   },

@@ -39,12 +39,12 @@ router.post('/generate-pdf', async (req, res) => {
         if (vehicles.length > 0) {
             doc.autoTable({
                 startY: vehiclesStartY + 5,
-                head: [['Name', 'Key', 'ShellCard', 'Paper', 'Cable', 'Status']],
+                head: [['Name', 'Key', 'FuelCard', 'Documents', 'Cable', 'Status']],
                 body: vehicles.map((v) => [
                     v.name,
                     v.key ? 'Yes' : 'No',
-                    v.shellCard ? 'Yes' : 'No',
-                    v.paper ? 'Yes' : 'No',
+                    v.FuelCard ? 'Yes' : 'No',
+                    v.Documents ? 'Yes' : 'No',
                     v.cable ? 'Yes' : 'No',
                     v.status || 'N/A',
                 ]),
@@ -169,7 +169,7 @@ router.post('/timecard-pdf', async (req, res) => {
         const startY = 45;
         doc.autoTable({
             startY,
-            head: [['Employee', 'Start Time', 'Last Delivery', 'End Time', 'TEL', 'Battery', 'Comment']],
+            head: [['Employee', 'Start Time', 'Last Delivery', 'End Time','fuel Card', 'TEL', 'Battery', 'Comment']],
             body: timeCards.map((card) => {
                 const employee = employees[card.employeeId];
                 const fullName = employee ? `${employee.name} ${employee.familyName}` : 'Unknown';
@@ -178,6 +178,7 @@ router.post('/timecard-pdf', async (req, res) => {
                     card.startTime || 'N/A',
                     card.lastDelivery || 'N/A',
                     card.endTime || 'N/A',
+                    card.fuelCardName || 'N/A',
                     card.tel || 'N/A',
                     card.powerbank || 'N/A',
                     card.comment || 'No comment',

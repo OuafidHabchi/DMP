@@ -5,6 +5,7 @@ const employeSchema = new mongoose.Schema({
   familyName: { type: String, required: true },
   tel: { type: String, required: true },
   email: { type: String, required: true },
+  flexAppEmail: { type: String },
   password: { type: String, required: true },
   role: { type: String, required: true },
   scoreCard: { type: String, required: true },

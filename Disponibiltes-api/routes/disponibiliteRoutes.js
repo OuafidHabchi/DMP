@@ -18,6 +18,13 @@ router.post('/disponibilites/create', disponibiliteController.createDisponibilit
 // Récupérer toutes les disponibilités
 router.get('/disponibilites', disponibiliteController.getAllDisponibilites);
 
+//get dipos par range de date
+router.get('/disponibilites/RangeDate', disponibiliteController.getDisponibilitesInDateRange);
+
+//get dispo par employe et range de date
+router.post('/disponibilites/dateRange/:employeeId', disponibiliteController.getDisponibilitesByEmployeeAndDateRange);
+
+
 // Récupérer une disponibilité par son ID
 router.get('/disponibilites/:id', disponibiliteController.getDisponibiliteById);
 router.get('/forWarnings/disponibilites', disponibiliteController.getDisponibilitesByIdsForWarning);

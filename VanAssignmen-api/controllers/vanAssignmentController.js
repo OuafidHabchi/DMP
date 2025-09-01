@@ -7,7 +7,7 @@ exports.createVanAssignment = async (req, res) => {
         const { data } = req.body;
         // Vérifie si data est un tableau
         if (Array.isArray(data)) {
-            // Insère plusieurs documents
+            // Insère plusieurs Documents
             const newAssignments = await VanAssignment.insertMany(data);
             res.status(200).json(newAssignments);
         } else {
