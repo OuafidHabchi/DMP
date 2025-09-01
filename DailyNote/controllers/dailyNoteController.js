@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { sendPushNotification } = require('../../utils/notifications');
+const { uploadMulterFiles } = require('../../utils/storage/uploader');
 
 // Répertoire pour stocker les images
 const uploadDirectory = path.join(__dirname, '../uploadsdailynote');
@@ -13,64 +14,78 @@ if (!fs.existsSync(uploadDirectory)) {
 exports.createDailyNote = async (req, res) => {
     try {
         const DailyNote = req.connection.models.DailyNote;
-        let Employe = req.connection.models.Employee; // ✅ Vérifier le modèle `Employee`
+        let Employe = req.connection.models.Employee;
 
         if (!Employe) {
-            // 🔥 Dynamically require and initialize the Employee model
-            const employeeSchema = require('../../Employes-api/models/Employee'); // Adjust the path if necessary
+            const employeeSchema = require('../../Employes-api/models/Employee');
             Employe = req.connection.model('Employee', employeeSchema);
         }
 
-        // ✅ Construction des données de la note quotidienne
-        const dailyNoteData = {
-            problemDescription: req.body.problemDescription || "",
-            problemType: req.body.problemType || "",
-            employee: req.body.employee ? JSON.parse(req.body.employee) : {},
-            assignedVanNameForToday: req.body.assignedVanNameForToday || "",
-            today: Array.isArray(req.body.today) ? req.body.today[0] : req.body.today, // Assure une seule date
-            time: req.body.time || "",
-        };
+        // ⚠️ Quand la requête vient d’un multipart, certains champs peuvent arriver en string JSON
+        const employeeParsed =
+            typeof req.body.employee === 'string'
+                ? safelyParseJSON(req.body.employee, {})
+                : (req.body.employee || {});
 
-        // ✅ Gestion du fichier (photo)
-        if (req.file) {
-            dailyNoteData.photo = `uploads-daily-notes/${req.file.filename}`;
-        }
+        // ▶️ 1) créer la note **sans** photo pour récupérer _id
+        const dailyNote = new DailyNote({
+            problemDescription: req.body.problemDescription || '',
+            problemType: req.body.problemType || '',
+            employee: employeeParsed,
+            assignedVanNameForToday: req.body.assignedVanNameForToday || '',
+            today: Array.isArray(req.body.today) ? req.body.today[0] : req.body.today || '',
+            time: req.body.time || '',
+            photo: '', // on mettra l'URL après upload éventuel
+            lu: false,
+        });
 
-        // ✅ Crée une nouvelle instance de DailyNote avec les données
-        const dailyNote = new DailyNote(dailyNoteData);
-
-        // ✅ Sauvegarde la note dans la base de données
         await dailyNote.save();
 
-        // ✅ 🔥 Émettre l'événement Socket.IO pour mise à jour en temps réel
+        // ▶️ 2) si un fichier "photo" est présent (multer single), on l'envoie dans Spaces
+        if (req.file) {
+            const [uploaded] = await uploadMulterFiles([req.file], {
+                pathPrefix: `daily-notes/${dailyNote._id}`, // dossier par note
+                makePublic: true,
+            });
+
+            // on stocke l’URL publique (CDN si configuré)
+            dailyNote.photo = uploaded.url;
+            await dailyNote.save();
+        }
+
+        // ▶️ 3) émettre l’évènement temps réel
         const io = req.app.get('socketio');
         io.emit('newDailyNote', dailyNote);
 
-        // ✅ Répondre au client avant d'envoyer les notifications
+        // ▶️ 4) répondre immédiatement au client
         res.status(200).json(dailyNote);
 
-        // ✅ Vérification et récupération des managers après avoir répondu au client
-        if (Employe) {
+        // ▶️ 5) notifications aux managers (hors chemin critique de réponse)
+        try {
             const managers = await Employe.find({ role: 'manager' }).select('expoPushToken');
-
-            // ✅ Envoi des notifications aux managers ayant un expoPushToken
             for (const manager of managers) {
                 if (manager.expoPushToken) {
                     const notificationBody = `A new ${req.body.problemType} Problme has been send. Check it now!`;
-                    const screen = '(manager)/(tabs)/(accueil)/Accueil'; // ✅ Ajout du screen path
-
+                    const screen = '(manager)/(tabs)/(accueil)/Accueil';
                     await sendPushNotification(manager.expoPushToken, notificationBody, screen);
                 }
             }
-        } else {
-            // rien à faire ici pour le moment
+        } catch (e) {
+            console.warn('[DailyNote] push notifications error:', e?.message || e);
         }
-
-
     } catch (error) {
-        res.status(500).json({ error: 'Erreur lors de la création de la note.', details: error.message });
+        console.error('createDailyNote error:', error);
+        res.status(500).json({
+            error: 'Erreur lors de la création de la note.',
+            details: error.message,
+        });
     }
 };
+
+// utilitaire local pour parser du JSON en sécurité
+function safelyParseJSON(str, fallback) {
+    try { return JSON.parse(str); } catch { return fallback; }
+}
 
 
 

@@ -5,13 +5,18 @@ const getDatabaseConnection = require('../../utils/database'); // Importez votre
 // Définition des modèles pour EquipmentUpdate
 const equipmentUpdateSchema = new mongoose.Schema({
   employeeName: { type: String, required: true },
-  vanName: { type: String, required: true },
-  localTime: { type: String, required: true },
-  imagePath: { type: String, required: true },
-  userId: { type: String, required: true }, 
-  photoType: { type: String, required: true }, 
-  day: { type: String, required: true },
-});
+  vanName:      { type: String, required: true },
+  localTime:    { type: String, required: true },
+  // ✅ Nouveau champ Spaces
+  imageUrl:     { type: String, required: true },
+
+  // (optionnel) compat ancienne version locale
+  imagePath:    { type: String }, 
+
+  userId:       { type: String, required: true },
+  photoType:    { type: String, required: true },
+  day:          { type: String, required: true },
+}, { timestamps: true });
 
 // Middleware pour l'API EquipmentUpdate
 const dbMiddlewareEquipmentUpdate = async (req, res, next) => {

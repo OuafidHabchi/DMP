@@ -1,30 +1,47 @@
+// Fleet-api/routes/vehicleRoutes.js
 const express = require('express');
 const dbMiddleware = require('../../utils/middleware');
 const vehicleController = require('../controllers/vehicleController');
+
+// Multer (mémoire) — déjà configuré dans ../../middlewares/upload
+const upload = require('../../middlewares/upload');
+
 const router = express.Router();
 
-// Middleware pour spécifier le modèle nécessaire
+/**
+ * maybeMulter :
+ * - N'active Multer que si la requête est bien en multipart.
+ * - Plus tolérant que req.is('multipart/form-data') (certains clients mobiles ajoutent un boundary).
+ */
+const isMultipart = (req) => {
+  const ct = (req.headers['content-type'] || '').toLowerCase();
+  // Ex: "multipart/form-data; boundary=----ExpoFormData..."
+  return ct.startsWith('multipart/form-data');
+};
+const maybeMulter = (req, res, next) => {
+  if (isMultipart(req)) {
+    return upload.array('files', 10)(req, res, next);
+  }
+  return next();
+};
+
+// ——— Scoping DB: préciser le modèle requis ———
 router.use((req, res, next) => {
   req.requiredModels = ['Vehicle'];
   next();
 });
 
-// Appliquer `dbMiddleware` dynamiquement sur les routes vehicles
+// ——— Brancher le middleware DB ———
 router.use(dbMiddleware);
 
-// Route pour ajouter un véhicule
-router.post('/add', vehicleController.addVehicle);
+// ——— Routes ———
+// ADD & UPDATE acceptent JSON (sans fichiers) ou MULTIPART (avec fichiers)
+router.post('/add', maybeMulter, vehicleController.addVehicle);
+router.put('/:id', maybeMulter, vehicleController.updateVehicleById);
 
-// Route pour récupérer tous les véhicules
+// Lecture / Suppression
 router.get('/all', vehicleController.getAllVehicles);
-
-// Route pour récupérer un véhicule par ID
 router.get('/:id', vehicleController.getVehicleById);
-
-// Route pour mettre à jour un véhicule par ID
-router.put('/:id', vehicleController.updateVehicleById);
-
-// Route pour supprimer un véhicule par ID
 router.delete('/:id', vehicleController.deleteVehicleById);
 
 module.exports = router;

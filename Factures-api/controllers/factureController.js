@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const { sendPushNotification } = require('../../utils/notifications');
-
+const {
+  uploadMulterFiles,
+  deleteByUrls,
+} = require('../../utils/storage/uploader');
 // Répertoire pour stocker les images
 const uploadDirectory = path.join(__dirname, '../uploadsFacture');
 
@@ -13,183 +16,174 @@ if (!fs.existsSync(uploadDirectory)) {
 
 exports.createFacture = async (req, res) => {
   try {
-    // Vérification des données requises
-    if (!req.body.name) {
-      console.error('Nom de la facture manquant');
-      return res.status(500).json({ error: 'Le nom de la facture est requis' });
-    }
-
     const Factures = req.connection.models.Factures;
-    const Employee = req.connection.models.Employee;
+    const Employee  = req.connection.models.Employee;
 
     if (!Factures) {
-      console.error('Modèle Factures non disponible');
+      console.error('[createFacture] Missing Factures model');
       return res.status(500).json({ error: 'Erreur de configuration serveur' });
     }
 
-    const { name, createdBy, createdAt,note } = req.body;
+    const { name, createdBy, createdAt, note } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Le nom de la facture est requis' });
+    }
 
-    // Construction du chemin du fichier
-    const filePath = req.file
-      ? path.join('uploadsFacture', req.file.filename)
-      : null;
+    // accept single or multiple multer entries
+    const files = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+    if (!files.length) {
+      return res.status(400).json({ error: 'Le fichier (image/pdf) est requis' });
+    }
 
+    // 1) Upload first
+    console.log('[createFacture] Uploading', files.length, 'file(s)…');
+    const uploaded = await uploadMulterFiles(files, {
+      pathPrefix: `factures/${Date.now()}` // temp folder; doc _id not known yet
+    });
 
-    // Création de la facture
+    if (!uploaded?.length || !uploaded[0]?.url) {
+      console.error('[createFacture] Upload failed or no URL returned:', uploaded);
+      return res.status(500).json({ error: "Échec d'upload du fichier" });
+    }
+
+    const fileUrl = uploaded[0].url;
+    console.log('[createFacture] Uploaded URL:', fileUrl);
+
+    // 2) Now create the document WITH fileUrl to satisfy schema
     const facture = await Factures.create({
       name,
       createdBy,
-      createdAt: createdAt || new Date(),
-      filePath,
-      note
+      createdAt: createdAt || new Date().toString(),
+      note,
+      fileUrl,                 // <-- required field provided here
     });
 
+    // 3) (optional) move to a path that uses the final _id, if you want
+    //    If your uploader supports moving/renaming, you could do it here.
+    //    Otherwise, leave as-is.
 
-
+    // 4) Notifications (unchanged)
     if (Employee) {
       const managers = await Employee.find({ role: 'manager' }).select('expoPushToken');
-      // Récupération des informations du créateur de la facture (nom, prénom)
-      const creator = await Employee.findById(facture.createdBy).select('name familyName');
-
-      // ✅ Envoi des notifications aux managers ayant un expoPushToken
+      const creator  = await Employee.findById(facture.createdBy).select('name familyName');
       for (const manager of managers) {
         if (manager.expoPushToken) {
-          const notificationBody = `${creator.name} ${creator.familyName} has issued a new invoice. Please check it now!`;
-          const screen = '(manager)/(tabs)/(RH)/Factures'; // ✅ Chemin du screen pour accéder à la section Factures
-
+          const notificationBody = `${creator?.name ?? ''} ${creator?.familyName ?? ''} has issued a new invoice. Please check it now!`;
+          const screen = '(manager)/(tabs)/(RH)/Factures';
           await sendPushNotification(manager.expoPushToken, notificationBody, screen);
         }
       }
     }
 
-    res.status(200).json({
-      success: true,
-      data: facture
-    });
-
+    return res.status(200).json({ success: true, data: facture });
   } catch (error) {
-    console.error('Erreur complète:', {
-      message: error.message,
-      stack: error.stack,
-      body: req.body,
-      file: req.file
-    });
-
-    res.status(500).json({
-      success: false,
-      error: 'Erreur lors de la création de la facture',
-    });
+    console.error('createFacture error:', error);
+    return res.status(500).json({ success: false, error: 'Erreur lors de la création de la facture' });
   }
 };
 
 
-// Récupérer toutes les factures avec les détails des créateurs
+
+// Récupérer toutes les factures + infos créateur
 exports.getFactures = async (req, res) => {
   try {
     const Factures = req.connection.models.Factures;
     const Employee = req.connection.models.Employee;
 
-    if (!Factures || !Employee) {
-      console.error('Modèles non disponibles : Factures ou Employee');
-    }
-    // Récupérer toutes les factures
-    const factures = await Factures.find({});
+    const factures = await Factures.find({}) || [];
 
-    // Ajouter les infos du créateur à chaque facture
     const facturesWithCreators = await Promise.all(
-      factures.map(async (facture) => {
-        const employe = await Employee.findById(facture.createdBy);
+      factures.map(async (f) => {
+        const e = await Employee.findById(f.createdBy);
         return {
-          ...facture.toJSON(),
-          creator: employe
-            ? {
-              name: employe.name,
-              familyName: employe.familyName,
-            }
-            : null,
+          ...f.toJSON(),
+          creator: e ? { name: e.name, familyName: e.familyName } : null,
         };
       })
     );
-    res.status(200).json(facturesWithCreators.reverse());
+
+    return res.status(200).json(facturesWithCreators.reverse());
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
 
-// Récupérer une facture par ID avec les détails du créateur
+
+// Récupérer une facture par ID
 exports.getFactureById = async (req, res) => {
   try {
     const Factures = req.connection.models.Factures;
     const Employee = req.connection.models.Employee;
 
-    if (!Factures || !Employee) {
-      console.error('Modèles non disponibles : Factures ou Employee');
-    }
-
-    // Trouver la facture par ID
     const facture = await Factures.findById(req.params.id);
-    if (!facture) {
-      return res.status(404).json({ message: 'Facture non trouvée' });
-    }
+    if (!facture) return res.status(404).json({ message: 'Facture non trouvée' });
 
-    // Trouver l'employé qui a créé la facture
-    const employe = await Employee.findById(facture.createdBy);
-
-    // Construire la réponse avec les infos du créateur
-    const factureWithCreator = {
+    const e = await Employee.findById(facture.createdBy);
+    const payload = {
       ...facture.toJSON(),
-      creator: employe
-        ? {
-          name: employe.name,
-          familyName: employe.familyName,
-        }
-        : null, // si l'employé n'existe pas
+      creator: e ? { name: e.name, familyName: e.familyName } : null,
     };
 
-    console.log('Facture trouvée :', factureWithCreator);
-
-    res.status(200).json(factureWithCreator);
+    return res.status(200).json(payload);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
 
-// Mettre à jour une facture
+// Mettre à jour une facture (nom + remplacement du fichier)
 exports.updateFacture = async (req, res) => {
   try {
     const Factures = req.connection.models.Factures;
-    const { name } = req.body;
-    const fileUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+    const facture = await Factures.findById(req.params.id);
+    if (!facture) return res.status(404).json({ message: 'Facture non trouvée' });
 
-    const facture = await Factures.findByPk(req.params.id);
-    if (!facture) {
-      return res.status(404).json({ message: 'Facture non trouvée' });
+    const { name, note } = req.body;
+
+    if (name !== undefined) facture.name = name;
+    if (note !== undefined) facture.note = note;
+
+    const files = Array.isArray(req.files)
+      ? req.files
+      : (req.file ? [req.file] : []);
+
+    if (files.length > 0) {
+      // supprimer l'ancien fichier si présent
+      if (facture.fileUrl) await deleteByUrls([facture.fileUrl]);
+
+      const uploaded = await uploadMulterFiles(files, {
+        pathPrefix: `factures/${facture._id}`,
+      });
+      if (!uploaded.length) {
+        return res.status(500).json({ message: "Échec d'upload du nouveau fichier" });
+      }
+      facture.fileUrl = uploaded[0].url;
     }
 
-    if (name) facture.name = name;
-    if (fileUrl) facture.fileUrl = fileUrl;
     await facture.save();
-
-    res.status(200).json(facture);
+    return res.status(200).json(facture);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
-// Supprimer une facture
+// Supprimer une facture (et son fichier dans Spaces)
 exports.deleteFacture = async (req, res) => {
   try {
     const Factures = req.connection.models.Factures;
-    const facture = await Factures.findByIdAndDelete(req.params.id);
-    if (!facture) {
-      return res.status(500).json({ message: 'Facture non trouvée' });
+    const facture = await Factures.findById(req.params.id);
+    if (!facture) return res.status(500).json({ message: 'Facture non trouvée' });
+
+    if (facture.fileUrl) {
+      await deleteByUrls([facture.fileUrl]).catch(() => {});
     }
-    // Pas besoin de `await facture.destroy();` ici car findByIdAndDelete l'a déjà supprimée
-    res.status(200).json({ message: 'Facture supprimée avec succès' });
+
+    await facture.deleteOne();
+
+    return res.status(200).json({ message: 'Facture supprimée avec succès' });
   } catch (error) {
     console.error('Erreur lors de la suppression de la facture :', error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };

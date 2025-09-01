@@ -1,46 +1,36 @@
+// DailyNote/routes/dailyNoteRoutes.js
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
 const dbMiddleware = require('../../utils/middleware');
 const dailyNoteController = require('../controllers/dailyNoteController');
 
+// ✅ on réutilise le middleware multer mémoire commun
+const upload = require('../../middlewares/upload');
+
 const router = express.Router();
 
-// Configuration de multer pour sauvegarder les fichiers localement
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = path.join(__dirname, '../uploadsdailynote'); // Chemin vers le dossier des uploads
-        cb(null, uploadPath); // Enregistrer les fichiers dans `uploadsdailynote`
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, `${uniqueSuffix}-${file.originalname}`); // Générer un nom unique pour chaque fichier
-    },
-});
+// 👉 n'applique Multer que pour les requêtes multipart/form-data
+const maybeMulterSinglePhoto = (req, res, next) => {
+  if (req.is('multipart/form-data')) {
+    // un seul champ fichier: "photo"
+    return upload.single('photo')(req, res, next);
+  }
+  return next();
+};
 
-const upload = multer({ storage });
-
-// Middleware pour spécifier le modèle nécessaire
+// modèle requis
 router.use((req, res, next) => {
-    req.requiredModels = ['DailyNote'];
-    next();
+  req.requiredModels = ['DailyNote'];
+  next();
 });
 
-// Appliquer `dbMiddleware` dynamiquement sur les routes daily notes
+// connexion DB dynamique
 router.use(dbMiddleware);
 
-// Routes pour les daily notes
-router.post('/create', upload.single('photo'), dailyNoteController.createDailyNote);
+// Routes
+router.post('/create', maybeMulterSinglePhoto, dailyNoteController.createDailyNote);
 router.get('/all', dailyNoteController.getAllDailyNotes);
 router.get('/by-date', dailyNoteController.getDailyNotesByDate);
 router.patch('/mark-as-read', dailyNoteController.markAsRead);
 router.get('/details/:noteId', dailyNoteController.getNoteDetails);
 
 module.exports = router;
-
-
-
-
-
-
-
