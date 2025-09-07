@@ -6,7 +6,7 @@ const { sendPushNotification } = require('../../utils/notifications'); // Import
 exports.createTimeCard = async (req, res) => {
   try {
     const TimeCard = req.connection.models.TimeCard; // Utilisation du modèle dynamique
-    const { employeeId, day, startTime = null, endTime = null, tel = '', powerbank = '', lastDelivery = '',fuelCard='' } = req.body;
+    const { employeeId, day, startTime = null, endTime = null, tel = '', powerbank = '', lastDelivery = '', fuelCard = '' } = req.body;
 
     // Ensure day is specified (could set today as default if it’s for current day)
     const today = day || new Date().toDateString();
@@ -314,7 +314,7 @@ exports.uploadTimeCardImage = async (req, res) => {
 };
 
 
-exports.getConsolidatedTimeCards = async (req, res) => {  
+exports.getConsolidatedTimeCards = async (req, res) => {
   try {
     const { date } = req.params;
     const models = req.connection.models;
@@ -326,8 +326,7 @@ exports.getConsolidatedTimeCards = async (req, res) => {
     // 2) Disponibilités confirmées
     const disponibilities = await (models.Disponibilite.find({
       selectedDay: new Date(date).toDateString(),
-      confirmation: "confirmed",
-      presence: "confirmed",
+      publish: true,
       employeeId: { $in: employeeIds }
     }) || []);
 
@@ -378,9 +377,9 @@ exports.getConsolidatedTimeCards = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur dans getConsolidatedTimeCards:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Erreur lors de la consolidation des données',
-      details: error.message 
+      details: error.message
     });
   }
 };

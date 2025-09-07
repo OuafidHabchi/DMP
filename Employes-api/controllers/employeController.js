@@ -5,6 +5,77 @@ const saltRounds = 10; // Niveau de complexité du hachage
 
 const { sendPushNotification } = require('../../utils/notifications');
 
+
+const assert7Booleans = (week = {}) => {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    for (const d of days) {
+        if (typeof week[d] !== 'boolean') {
+            throw new Error(`Invalid schedule: "${d}" must be boolean`);
+        }
+    }
+};
+
+
+// PUT /api/employee/:id/schedule
+exports.setEmployeeSchedule = async (req, res) => {
+    try {
+        const Employe = req.connection.models.Employee;
+        const { id } = req.params;                 // employeeId
+        const { schedule, managerId } = req.body;  // schedule = 7 booléens
+
+        try { assert7Booleans(schedule); }
+        catch (e) { return res.status(400).json({ message: e.message }); }
+
+        const setOps = {};
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        for (const d of days) setOps[`schedule.${d}`] = !!schedule[d];
+        setOps['schedule.updatedAt'] = new Date();
+        setOps['schedule.updatedBy'] = managerId || null;
+
+        const emp = await Employe.findByIdAndUpdate(
+            id,
+            { $set: setOps },
+            { new: true }
+        );
+
+        if (!emp) return res.status(404).json({ message: 'Employé introuvable.' });
+
+        try {
+            if (emp.expoPushToken) {
+                await sendPushNotification(
+                    emp.expoPushToken,
+                    'Your weekly schedule was set/updated by your manager.',
+                    '(driver)/(tabs)/(Employe)/Disponibilites'
+                );
+            }
+        } catch (_) { }
+
+        return res.status(200).json({
+            message: 'Schedule updated',
+            employeeId: id,
+            schedule: emp.schedule // contient monday..sunday + updatedAt + updatedBy
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'Erreur lors de la mise à jour du schedule', error: error.message });
+    }
+};
+
+
+// GET /api/employee/:id/schedule
+exports.getEmployeeSchedule = async (req, res) => {
+    try {
+        const Employe = req.connection.models.Employee;
+        const { id } = req.params;
+        const emp = await Employe.findById(id).select('schedule');
+        if (!emp) return res.status(404).json({ message: 'Employé introuvable.' });
+        res.status(200).json(emp); // { _id, schedule:{ monday.., updatedAt, updatedBy } }
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur lors de la récupération du schedule', error: error.message });
+    }
+};
+
+
+
 // Inscription d'un employé
 exports.registeremploye = async (req, res) => {
     try {
@@ -67,16 +138,16 @@ exports.registeremploye = async (req, res) => {
 
 
 // Inscription d'un manager
-exports.registerManager = async (req, res) => {    
+exports.registerManager = async (req, res) => {
     try {
         const { name, familyName, tel, email, password, role, language, scoreCard, expoPushToken, dsp_code } = req.body;
-        
+
         const Employe = req.connection.models.Employee;
 
         // Vérification si l'employé existe déjà
         const existingEmploye = await Employe.findOne({ email });
         if (existingEmploye) {
-            return res.status(500).json({ 
+            return res.status(500).json({
                 message: 'An employee with this email already exists.',
                 email: email
             });
@@ -239,7 +310,7 @@ exports.registerManager = async (req, res) => {
         });
 
     } catch (error) {
-        
+
         // Journalisation détaillée de l'erreur
         const errorDetails = {
             message: error.message,
@@ -248,10 +319,10 @@ exports.registerManager = async (req, res) => {
             requestBody: req.body,
             errorType: error.name
         };
-        
+
         console.error('[registerManager] Détails de l\'erreur:', JSON.stringify(errorDetails, null, 2));
-        
-        res.status(500).json({ 
+
+        res.status(500).json({
             status: 'error',
             message: 'Error during manager registration or sending welcome email',
             error: process.env.NODE_ENV === 'development' ? errorDetails : 'Internal server error',
@@ -372,11 +443,19 @@ exports.updateEmployeePassword = async (req, res) => {
     }
 };
 
-// Mise à jour du profil d'un employé
+// Mise à jour du profil d'un employé (schedule protégé)
 exports.updateemployeProfile = async (req, res) => {
     try {
-        const Employe = req.connection.models.Employee; // Modèle injecté dynamiquement
-        const updatedEmploye = await Employe.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const Employe = req.connection.models.Employee;
+
+        // Empêche toute mise à jour de schedule via ce endpoint
+        const { schedule, 'schedule.updatedAt': _a, 'schedule.updatedBy': _b, ...safeBody } = req.body || {};
+
+        const updatedEmploye = await Employe.findByIdAndUpdate(
+            req.params.id,
+            safeBody,
+            { new: true }
+        );
 
         if (!updatedEmploye) {
             return res.status(500).json({ message: 'Employé introuvable.' });
@@ -387,6 +466,7 @@ exports.updateemployeProfile = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la mise à jour', error });
     }
 };
+
 
 // Récupérer tous les employés
 exports.getAllEmployees = async (req, res) => {

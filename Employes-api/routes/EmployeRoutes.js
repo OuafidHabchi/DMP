@@ -27,4 +27,11 @@ router.post('/by-ids', employeController.getEmployeesByIds);
 router.put('/update-password/:id', employeController.updateEmployeePassword);
 router.post('/registerManager/create', employeController.registerManager);
 
+
+router.put('/:id/schedule', employeController.setEmployeeSchedule);
+router.get('/:id/schedule', employeController.getEmployeeSchedule);
+
+
+
+
 module.exports = router;

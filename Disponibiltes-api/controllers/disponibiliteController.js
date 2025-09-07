@@ -1,10 +1,13 @@
-const { log } = require('console');
 const { sendPushNotification } = require('../../utils/notifications'); // Importer ta fonction d'envoi de notifications
 
 // Créer une disponibilité
 exports.createDisponibilite = async (req, res) => {
-    const { employeeId, selectedDay, shiftId, expoPushToken } = req.body;
-    const decisions = "pending";
+    const { employeeId, selectedDay, shiftId } = req.body;
+    publish = false
+    confirmation = false
+    seen = false
+    canceled = false
+
 
     try {
         const Disponibilite = req.connection.models.Disponibilite;
@@ -20,31 +23,12 @@ exports.createDisponibilite = async (req, res) => {
             Employe = req.connection.model('Employee', employeeSchema);
         }
 
-        const newDisponibilite = new Disponibilite({ employeeId, selectedDay, shiftId, decisions, expoPushToken });
+        const newDisponibilite = new Disponibilite({ employeeId, selectedDay, shiftId, publish, confirmation, seen, canceled });
         await newDisponibilite.save();
 
         res.status(200).json(newDisponibilite);
 
-        if (expoPushToken && employeeId) {
-            const employee = await Employe.findById(employeeId).select('role');
-            let screen = '';
 
-            if (employee?.role === 'manager') {
-                screen = '(manager)/(tabs)/(RH)/EmployeesAvaibilities';
-            } else if (employee?.role === 'driver') {
-                screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
-            }
-
-            const notificationBody = `A new availability has been created for you on ${selectedDay}. Please review it.`;
-
-            sendPushNotification(
-                expoPushToken,
-                notificationBody,
-                screen
-            ).catch((notificationError) => {
-                console.error('Erreur lors de l\'envoi de la notification push:', notificationError);
-            });
-        }
     } catch (err) {
         if (!res.headersSent) {
             res.status(500).json({ error: 'Erreur lors de la création de la disponibilité.', details: err.message });
@@ -74,86 +58,87 @@ exports.getAllDisponibilites = async (req, res) => {
 // Récupérer toutes les disponibilités entre deux dates (tous employés)
 // Supporte soit days[] (strings déjà formatées), soit startDate/endDate (strings "Sun Sep 01 2025")
 exports.getDisponibilitesInDateRange = async (req, res) => {
-  try {
-    const Disponibilite = req.connection.models.Disponibilite;
-    if (!Disponibilite) {
-      return res.status(500).json({ error: "Le modèle Disponibilite n'est pas disponible dans la connexion actuelle." });
+    try {
+        const Disponibilite = req.connection.models.Disponibilite;
+        if (!Disponibilite) {
+            return res.status(500).json({ error: "Le modèle Disponibilite n'est pas disponible dans la connexion actuelle." });
+        }
+
+        let { days } = req.query;
+        const { startDate, endDate } = req.query;
+
+        // Normalise days en tableau de strings si déjà fourni (days[]=... ou days='["..."]')
+        if (days && !Array.isArray(days)) {
+            try { days = JSON.parse(days); } catch { days = [days]; }
+        }
+
+        // Si pas de days fournis, on fabrique la liste à partir de start/end (strings type "Sun Sep 01 2025")
+        if (!days && startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            // Sécurise contre DST : travaille à midi local
+            start.setHours(12, 0, 0, 0);
+            end.setHours(12, 0, 0, 0);
+
+            const arr = [];
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                arr.push(new Date(d).toDateString()); // => "Wed Sep 03 2025"
+            }
+            days = arr;
+        }
+
+        if (!days || !days.length) {
+            return res.status(200).json([]); // rien à filtrer
+        }
+
+        // Construit le filtre : selectedDay est string => $in sur des strings
+        const filter = { selectedDay: { $in: days } };
+
+
+        const disponibilites = await Disponibilite.find(filter);
+        return res.status(200).json(disponibilites);
+    } catch (err) {
+        return res.status(500).json({ error: "Erreur lors de la récupération des disponibilités.", details: err.message });
     }
-
-    let { days } = req.query;
-    const { startDate, endDate } = req.query;
-
-    // Normalise days en tableau de strings si déjà fourni (days[]=... ou days='["..."]')
-    if (days && !Array.isArray(days)) {
-      try { days = JSON.parse(days); } catch { days = [days]; }
-    }
-
-    // Si pas de days fournis, on fabrique la liste à partir de start/end (strings type "Sun Sep 01 2025")
-    if (!days && startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      // Sécurise contre DST : travaille à midi local
-      start.setHours(12, 0, 0, 0);
-      end.setHours(12, 0, 0, 0);
-
-      const arr = [];
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        arr.push(new Date(d).toDateString()); // => "Wed Sep 03 2025"
-      }
-      days = arr;
-    }
-
-    if (!days || !days.length) {
-      return res.status(200).json([]); // rien à filtrer
-    }
-
-    // Construit le filtre : selectedDay est string => $in sur des strings
-    const filter = { selectedDay: { $in: days } };
-    
-
-    const disponibilites = await Disponibilite.find(filter);
-    return res.status(200).json(disponibilites);
-  } catch (err) {
-    return res.status(500).json({ error: "Erreur lors de la récupération des disponibilités.", details: err.message });
-  }
 };
 
 
+
+// helper: ramène n’importe quelle entrée (string/date) au minuit local du jour
+const toLocalDateOnly = (v) => {
+    const d = new Date(v);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()); // 00:00 local
+};
 
 exports.getDisponibilitesByEmployeeAndDateRange = async (req, res) => {
-  const { employeeId } = req.params;
-  const { startDate, endDate } = req.body;
+    const { employeeId } = req.params;
+    const { startDate, endDate } = req.body;
 
-  try {
-    const Disponibilite = req.connection.models.Disponibilite;
+    try {
+        const Disponibilite = req.connection.models.Disponibilite;
+        if (!Disponibilite) {
+            return res.status(500).json({ error: "Le modèle Disponibilite n'est pas disponible." });
+        }
 
-    if (!Disponibilite) {
-      return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible.' });
+        // bornes inclusives en local : [start 00:00, end 23:59:59.999]
+        const start = toLocalDateOnly(startDate);
+        const end = new Date(toLocalDateOnly(endDate).getTime() + 24 * 60 * 60 * 1000 - 1);
+
+        const disponibilites = await Disponibilite.find({ employeeId, publish: true });
+
+        const filtered = disponibilites.filter((d) => {
+            const dd = toLocalDateOnly(d.selectedDay); // "Wed Sep 03 2025" → 00:00 local
+            return dd >= start && dd <= end; // inclusif
+        });
+
+        filtered.sort((a, b) => toLocalDateOnly(a.selectedDay) - toLocalDateOnly(b.selectedDay));
+        res.status(200).json(filtered);
+    } catch (err) {
+        res.status(500).json({ error: "Erreur lors de la récupération des disponibilités.", details: err.message });
     }
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    // Convertir en toDateString pour correspondre au format de la BDD
-    const disponibilites = await Disponibilite.find({
-      employeeId,
-      decisions: 'accepted'
-    });
-
-    const filtered = disponibilites.filter(d => {
-      const dispoDate = new Date(d.selectedDay); // "Wed Sep 03 2025"
-      return dispoDate >= start && dispoDate <= end;
-    });
-
-    // Trier les résultats par date croissante
-    filtered.sort((a, b) => new Date(a.selectedDay) - new Date(b.selectedDay));
-
-    res.status(200).json(filtered);
-  } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la récupération des disponibilités.', details: err.message });
-  }
 };
+
 
 
 
@@ -221,26 +206,40 @@ exports.getDisponibilitesByIdsForWarning = async (req, res) => {
 
 
 
-// Mettre à jour une disponibilité
-exports.updateDisponibilite = async (req, res) => {
-    const { employeeId, selectedDay, shiftId, decisions, confirmation } = req.body;
 
+// Mettre à jour confirmation d'une disponibilité
+exports.confirmDisponibilite = async (req, res) => {
     try {
         const Disponibilite = req.connection.models.Disponibilite;
 
         if (!Disponibilite) {
-            return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible dans la connexion actuelle.' });
+            return res
+                .status(500)
+                .json({ error: "Le modèle Disponibilite n'est pas disponible." });
+        }
+
+        const dispoId = req.params.id;
+        console.log(dispoId)
+        if (!dispoId) {
+            return res.status(400).json({ error: "L'ID de la disponibilité est requis." });
         }
 
         const updatedDisponibilite = await Disponibilite.findByIdAndUpdate(
-            req.params.id,
-            { employeeId, selectedDay, shiftId, decisions, confirmation },
+            dispoId,
+            { confirmation: true }, // ⚡ Forcé
             { new: true, runValidators: true }
         );
 
-        res.status(200).json(updatedDisponibilite || {}); // Retourne un objet vide si non trouvé
+        if (!updatedDisponibilite) {
+            return res.status(404).json({ error: "Disponibilité non trouvée." });
+        }
+
+        res.status(200).json(updatedDisponibilite);
     } catch (err) {
-        res.status(500).json({ error: 'Erreur lors de la mise à jour de la disponibilité.', details: err.message });
+        res.status(500).json({
+            error: "Erreur lors de la mise à jour de la disponibilité.",
+            details: err.message,
+        });
     }
 };
 
@@ -265,27 +264,7 @@ exports.deleteDisponibilite = async (req, res) => {
 
         res.status(200).json({ message: deletedDisponibilite ? 'Disponibilité supprimée avec succès.' : 'Aucune disponibilité à supprimer.' });
 
-        // Envoi notification si le token est présent
-        if (deletedDisponibilite?.expoPushToken && deletedDisponibilite?.employeeId) {
-            const employee = await Employe.findById(deletedDisponibilite.employeeId).select('role');
-            let screen = '';
 
-            if (employee?.role === 'manager') {
-                screen = '(manager)/(tabs)/(RH)/EmployeesAvaibilities';
-            } else if (employee?.role === 'driver') {
-                screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
-            }
-
-            const notificationBody = `Your availability on ${deletedDisponibilite.selectedDay} has been deleted.`;
-
-            sendPushNotification(
-                deletedDisponibilite.expoPushToken,
-                notificationBody,
-                screen
-            ).catch((notificationError) => {
-                console.error('Erreur lors de l\'envoi de la notification push:', notificationError);
-            });
-        }
     } catch (err) {
         res.status(500).json({ error: 'Erreur lors de la suppression de la disponibilité.', details: err.message });
     }
@@ -325,31 +304,7 @@ exports.deleteDisponibilitesByShiftId = async (req, res) => {
                 : 'Aucune disponibilité trouvée avec cet shiftId.'
         });
 
-        // Envoyer les notifications après la suppression
-        for (const disponibilite of disponibilites) {
-            if (disponibilite.expoPushToken && disponibilite.employeeId) {
-                try {
-                    const employee = await Employe.findById(disponibilite.employeeId).select('role');
-                    let screen = '';
 
-                    if (employee?.role === 'manager') {
-                        screen = '(manager)/(tabs)/(RH)/EmployeesAvaibilities';
-                    } else if (employee?.role === 'driver') {
-                        screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
-                    }
-
-                    const notificationBody = `Your availability on ${disponibilite.selectedDay} has been deleted.`;
-
-                    await sendPushNotification(
-                        disponibilite.expoPushToken,
-                        notificationBody,
-                        screen
-                    );
-                } catch (error) {
-                    console.error('Erreur lors de l\'envoi de la notification push:', error);
-                }
-            }
-        }
 
     } catch (err) {
         res.status(500).json({ error: 'Erreur lors de la suppression des disponibilités.', details: err.message });
@@ -361,15 +316,21 @@ exports.deleteDisponibilitesByShiftId = async (req, res) => {
 
 
 
-// Mettre à jour plusieurs disponibilités
+// Mettre à jour plusieurs disponibilités (publish -> true) + notifier l'employé
 exports.updateMultipleDisponibilites = async (req, res) => {
-    const { decisions } = req.body; // Tableau de décisions avec employeeId, selectedDay, shiftId, et status
+    const { decisions } = req.body; // [{ dispoId, employeeId }, ...]
     try {
+        if (!Array.isArray(decisions) || decisions.length === 0) {
+            return res.status(400).json({ error: 'decisions must be a non-empty array' });
+        }
+
         const Disponibilite = req.connection.models.Disponibilite;
         let Employe = req.connection.models.Employee;
 
         if (!Disponibilite) {
-            return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible dans la connexion actuelle.' });
+            return res
+                .status(500)
+                .json({ error: "Le modèle Disponibilite n'est pas disponible dans la connexion actuelle." });
         }
 
         // Charger dynamiquement le modèle Employe si nécessaire
@@ -378,56 +339,66 @@ exports.updateMultipleDisponibilites = async (req, res) => {
             Employe = req.connection.model('Employee', employeeSchema);
         }
 
-        const updatePromises = decisions.map(async (decision) => {
-            const oldDisponibilite = await Disponibilite.findOne({ employeeId: decision.employeeId, selectedDay: decision.selectedDay });
-
-            if (!oldDisponibilite || oldDisponibilite.decisions === decision.status) {
-                return null;
+        // Traite chaque décision : set publish=true sur la dispo (_id=dispoId)
+        const updatePromises = decisions.map(async (d) => {
+            if (!d?.dispoId || !d?.employeeId) {
+                // entrée invalide -> on ignore cette ligne proprement
+                return { updated: null, notified: false, reason: 'missing ids' };
             }
 
-            const updatedDisponibilite = await Disponibilite.findOneAndUpdate(
-                { employeeId: decision.employeeId, selectedDay: decision.selectedDay },
-                { decisions: decision.status },
+            // 1) MAJ publish à true
+            const updated = await Disponibilite.findOneAndUpdate(
+                { _id: d.dispoId },
+                { $set: { publish: true } },
                 { new: true, runValidators: true }
             );
 
-            if (updatedDisponibilite?.expoPushToken && decision.employeeId) {
-                try {
-                    const employee = await Employe.findById(decision.employeeId).select('role');
-                    let screen = '';
+            // si pas trouvé, on arrête là pour cette entrée
+            if (!updated) return { updated: null, notified: false, reason: 'dispo not found' };
 
-                    if (employee?.role === 'manager') {
-                        screen = '(manager)/(tabs)/(RH)/EmployeesAvaibilities';
-                    } else if (employee?.role === 'driver') {
-                        screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
-                    }
-
-                    const notificationBody = `Your availability for ${updatedDisponibilite.selectedDay} has been ${decision.status}.`;
-
-                    await sendPushNotification(
-                        updatedDisponibilite.expoPushToken,
-                        notificationBody,
-                        screen
-                    );
-                } catch (error) {
-                    console.error('Erreur lors de l\'envoi de la notification push:', error);
-                }
+            // 2) Récupérer l’employé pour le token et le rôle
+            const employee = await Employe.findById(d.employeeId).select('expoPushToken role');
+            if (!employee?.expoPushToken) {
+                return { updated, notified: false, reason: 'no token' };
             }
 
-            return updatedDisponibilite;
+            // 3) Choisir l’écran selon le rôle (on garde la même logique)
+            let screen = '';
+            if (employee.role === 'manager') {
+                screen = '(manager)/(tabs)/(RH)/Schedule';
+            } else if (employee.role === 'driver') {
+                screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
+            }
+
+            // 4) Message: weekly schedule published
+            const body = 'Your weekly schedule has been published.'; // FR possible si besoin
+
+            try {
+                await sendPushNotification(employee.expoPushToken, body, screen);
+                return { updated, notified: true };
+            } catch (err) {
+                console.error('Erreur notification push:', err);
+                return { updated, notified: false, reason: 'push error' };
+            }
         });
 
         const results = await Promise.all(updatePromises);
-        const updatedDisponibilites = results.filter(dispo => dispo !== null);
 
-        res.status(200).json({
-            message: `${updatedDisponibilites.length} disponibilités mises à jour avec succès`,
-            updatedDisponibilites
+        const updatedCount = results.filter(r => r.updated).length;
+        const notifiedCount = results.filter(r => r.notified).length;
+
+        return res.status(200).json({
+            message: `${updatedCount} disponibilités publiées (publish=true). Notifications envoyées: ${notifiedCount}.`,
+            details: results,
         });
     } catch (err) {
-        res.status(500).json({ error: 'Erreur lors de la mise à jour des disponibilités.', details: err.message });
+        console.error(err);
+        return res
+            .status(500)
+            .json({ error: 'Erreur lors de la mise à jour des disponibilités.', details: err.message });
     }
 };
+
 
 
 
@@ -481,95 +452,96 @@ exports.getDisponibilitesByEmployeeAndDay = async (req, res) => {
 
 
 
-// Bulk update disponibilites confirmation
+// Bulk update disponibilites confirmation (nouveau format: req.body.updates)
 exports.updateMultipleDisponibilitesConfirmation = async (req, res) => {
-    const { confirmations } = req.body;
+    // ✅ nouveau champ "updates" (on garde un fallback "confirmations" au cas où)
+    const rawUpdates = Array.isArray(req.body.updates)
+        ? req.body.updates
+        : [];
+
+    if (!rawUpdates.length) {
+        return res.status(400).json({
+            error: "No updates provided. Expecting { updates: [{disponibiliteId, employeeId, confirmation, canceled, seen}] }",
+        });
+    }
 
     try {
         const Disponibilite = req.connection.models.Disponibilite;
         let Employe = req.connection.models.Employee;
 
         if (!Disponibilite) {
-            return res.status(500).json({ error: 'Le modèle Disponibilite n\'est pas disponible dans la connexion actuelle.' });
+            return res.status(500).json({
+                error: "Le modèle Disponibilite n'est pas disponible dans la connexion actuelle.",
+            });
         }
 
-        // Charger dynamiquement le modèle Employe si nécessaire
+        // Charger dynamiquement le modèle Employee si nécessaire
         if (!Employe) {
             const employeeSchema = require('../../Employes-api/models/Employee');
             Employe = req.connection.model('Employee', employeeSchema);
         }
 
-        const updatePromises = confirmations.map(async (confirmation) => {
+        const updatePromises = rawUpdates.map(async (u) => {
+            const { disponibiliteId, employeeId, confirmation, canceled, seen } = u || {};
+
+            if (!disponibiliteId || !employeeId) {
+                return null; // on ignore les entrées incomplètes
+            }
+
             try {
-                const dispo = await Disponibilite.findOne({
-                    employeeId: confirmation.employeeId,
-                    selectedDay: confirmation.selectedDay,
-                    shiftId: confirmation.shiftId
-                });
-
-                if (dispo && 'presence' in dispo) {
-                    await Disponibilite.updateOne(
-                        {
-                            employeeId: confirmation.employeeId,
-                            selectedDay: confirmation.selectedDay,
-                            shiftId: confirmation.shiftId
+                // On unset systématiquement presence (pas d'effet si absent)
+                const updatedDispo = await Disponibilite.findByIdAndUpdate(
+                    disponibiliteId,
+                    {
+                        $set: {
+                            confirmation: !!confirmation, // bool
+                            canceled: !!canceled,         // bool
+                            seen: !!seen,                 // bool
                         },
-                        { $unset: { presence: "" } }
-                    );
-                }
-
-                const updatedDispo = await Disponibilite.findOneAndUpdate(
-                    {
-                        employeeId: confirmation.employeeId,
-                        selectedDay: confirmation.selectedDay,
-                        shiftId: confirmation.shiftId
-                    },
-                    {
-                        confirmation: confirmation.status,
-                        seen: confirmation.seen
+                        $unset: { presence: "" },
                     },
                     { new: true, runValidators: true }
                 );
 
-                // 🔔 Envoi de notification avec le token de l'employé
-                if (confirmation.employeeId) {
-                    const employee = await Employe.findById(confirmation.employeeId).select('role expoPushToken');
+                if (!updatedDispo) return null;
 
-                    if (employee?.expoPushToken) {
-                        let screen = '';
-
-                        if (employee.role === 'manager') {
-                            screen = '(manager)/(tabs)/(Dispatcher)/Confirmation';
-                        } else if (employee.role === 'driver') {
-                            screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
-                        }
-
-                        const statusMessage = `🚨 Urgent: Verify your shift for ${updatedDispo.selectedDay} as it needs your immediate action.`;
-
-                        await sendPushNotification(
-                            employee.expoPushToken,
-                            statusMessage,
-                            screen
-                        );
+                // 🔔 Notification push (si token dispo)
+                const employee = await Employe.findById(employeeId).select('role expoPushToken');
+                if (employee?.expoPushToken) {
+                    let screen = '';
+                    if (employee.role === 'manager') {
+                        screen = '(manager)/(tabs)/(Dispatcher)/Confirmation';
+                    } else if (employee.role === 'driver') {
+                        screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
                     }
+
+                    // Message simple et clair (tu peux l’ajuster si tu veux différencier annulé vs re-confirmation)
+                    const statusMessage = `🚨 Urgent: Verify your shift for ${updatedDispo.selectedDay}.`
+                        
+                    await sendPushNotification(employee.expoPushToken, statusMessage, screen);
                 }
 
                 return updatedDispo;
-
             } catch (err) {
-                console.error('Erreur lors de la vérification et mise à jour:', err);
+                console.error('Erreur update dispo:', err);
                 return null;
             }
         });
 
-        const updatedDisponibilites = (await Promise.all(updatePromises)).filter(dispo => dispo !== null);
+        const updatedDisponibilites = (await Promise.all(updatePromises)).filter(Boolean);
 
-        res.status(200).json({ message: 'Disponibilites updated successfully', updatedDisponibilites });
-
+        return res.status(200).json({
+            message: 'Disponibilites updated successfully',
+            updatedDisponibilites,
+        });
     } catch (err) {
-        res.status(500).json({ error: 'Erreur lors de la mise à jour des disponibilités.', details: err.message });
+        return res.status(500).json({
+            error: 'Erreur lors de la mise à jour des disponibilités.',
+            details: err.message,
+        });
     }
 };
+
 
 
 
@@ -651,7 +623,7 @@ exports.getDisponibilitesByDate = async (req, res) => {
 
         const disponibilites = await Disponibilite.find({
             selectedDay: new Date(selectedDay).toDateString(),
-            decisions: 'accepted',
+            publish: true,
         }) || [];
 
         res.status(200).json(disponibilites);

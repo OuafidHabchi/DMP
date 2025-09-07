@@ -29,8 +29,8 @@ router.post('/disponibilites/dateRange/:employeeId', disponibiliteController.get
 router.get('/disponibilites/:id', disponibiliteController.getDisponibiliteById);
 router.get('/forWarnings/disponibilites', disponibiliteController.getDisponibilitesByIdsForWarning);
 
-// Mettre à jour une disponibilité
-router.put('/disponibilites/:id', disponibiliteController.updateDisponibilite);
+// Mettre à jour une disponibilité( confirmation a true or false)
+router.put('/confirmDisponibilite/:id', disponibiliteController.confirmDisponibilite);
 
 // Supprimer une disponibilité
 router.delete('/disponibilites/:id', disponibiliteController.deleteDisponibilite);
