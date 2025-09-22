@@ -99,7 +99,6 @@ exports.updateAssignmentsByDateAndEmployee = async (req, res) => {
         const VanAssignment = req.connection.models.VanAssignment; // Modèle dynamique
         const { date, employeeId } = req.params;
         const updateData = req.body; // Contains the fields to update
-        // console.log("update"+date, employeeId);
         // Find and update the assignment for the specified date and employee ID
         const updatedAssignment = await VanAssignment.updateOne(
             { date, employeeId },

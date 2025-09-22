@@ -71,6 +71,13 @@ router.post('/disponibilites/Update/suspension', disponibiliteController.suspend
 router.post('/disponibilites/Update/unsuspend', disponibiliteController.unsuspendDisponibilites);
 
 
+// Mettre ou mettre à jour un partenaire
+router.put('/partner/:id', disponibiliteController.setPartner);
+
+// Supprimer le partenaire
+router.delete('/partner/:id', disponibiliteController.clearPartner);
+
+
 
 
 module.exports = router;

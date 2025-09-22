@@ -103,6 +103,7 @@ const processRoutes = require('./hiring-process-api/routes/processRoutes');
 const candidateRoutes = require('./candidature-api/routes/candidateRoutes');
 const fuelCardRoutes = require('./fuelcard-api/routes/fuelCardRoutes');
 const storageRoutes = require('./Storage-api/routes/storageRoutes');
+const trainingRoutes = require('./training-api/routes/trainingRoutes');
 
 
 
@@ -147,6 +148,8 @@ app.use('/api/process', processRoutes);
 app.use('/api/candidate', candidateRoutes);
 app.use('/api/fuelcards', fuelCardRoutes);
 app.use('/api/storage', storageRoutes);
+app.use('/api/training', trainingRoutes);
+
 
 
 

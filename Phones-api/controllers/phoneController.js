@@ -1,6 +1,12 @@
 exports.createPhone = async (req, res) => {
     try {
-        const Phone = req.connection.models.Phone; // Modèle dynamique
+        const Phone = req.connection.models.Phone;
+        const { linkedType, linkedId } = req.body;
+
+        if (!linkedType || !linkedId) {
+            return res.status(400).json({ message: "linkedType and linkedId are required" });
+        }
+
         const phone = new Phone(req.body);
         await phone.save();
         res.status(200).json(phone);
@@ -8,6 +14,7 @@ exports.createPhone = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la création du téléphone', error });
     }
 };
+
 
 exports.getAllPhones = async (req, res) => {
     try {

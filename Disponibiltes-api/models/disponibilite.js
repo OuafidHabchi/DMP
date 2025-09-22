@@ -9,7 +9,10 @@ const disponibiliteSchema = new mongoose.Schema({
   confirmation: { type: Boolean }, // Confirmation (optionnel)
   canceled: { type: Boolean },
   suspension: { type: Boolean },
-  seen: { type: Boolean }
+  seen: { type: Boolean },
+  partnerType: { type: String},      // "helper" | "replacement"
+partnerEmployeeId: { type: String } // _id de l'employé lié
+
 });
 
 // Exporter uniquement le schéma

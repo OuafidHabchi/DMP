@@ -15,26 +15,40 @@ const timeCardSchema = new mongoose.Schema({
   endTime: {
     type: String,
   },
-  tel:{
+  tel: {
     type: String,
   },
-  powerbank:{
+  powerbank: {
     type: String,
   },
-  lastDelivery:{
+  lastDelivery: {
     type: String,
   },
-  fuelCard:{
+  fuelCard: {
     type: String,
   },
-  CortexDuree:{
+  CortexDuree: {
     type: String,
   },
-  CortexEndTime:{
+  CortexEndTime: {
     type: String,
   },
- image:{type:String},
+  staging: {
+    type: String,
+  },
+  waveTime: {
+    type: String,
+  },
+  refueled: {
+    type: Boolean,
+    default: false,
+  },
+  image: { type: String },
 });
+
+
+
+
 
 
 module.exports = timeCardSchema;

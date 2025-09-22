@@ -1,4 +1,5 @@
 const path = require("path");
+const { Types } = require('mongoose');
 const { sendPushNotification } = require('../../utils/notifications'); // Importer la fonction de notification
 
 
@@ -6,7 +7,19 @@ const { sendPushNotification } = require('../../utils/notifications'); // Import
 exports.createTimeCard = async (req, res) => {
   try {
     const TimeCard = req.connection.models.TimeCard; // Utilisation du modèle dynamique
-    const { employeeId, day, startTime = null, endTime = null, tel = '', powerbank = '', lastDelivery = '', fuelCard = '' } = req.body;
+    const {
+      employeeId,
+      day,
+      startTime = null,
+      endTime = null,
+      tel = '',
+      powerbank = '',
+      lastDelivery = '',
+      fuelCard = '',
+      staging = '',        // ✅ NEW
+      waveTime = '',
+      refueled = false,        // ✅ NEW
+    } = req.body;
 
     // Ensure day is specified (could set today as default if it’s for current day)
     const today = day || new Date().toDateString();
@@ -24,7 +37,10 @@ exports.createTimeCard = async (req, res) => {
       tel,
       powerbank,
       lastDelivery,
-      fuelCard
+      fuelCard,
+      staging,            // ✅ NEW
+      waveTime,
+      refueled            // ✅ NEW
     });
 
     await newTimeCard.save();
@@ -33,6 +49,7 @@ exports.createTimeCard = async (req, res) => {
     res.status(500).json({ message: 'Error creating time card', error });
   }
 };
+
 
 
 // Lire toutes les fiches de temps
@@ -122,19 +139,23 @@ exports.updateOrCreateTimeCard = async (req, res) => {
     const { employeeId, day } = req.params;
     const updateFields = req.body;
     const TimeCard = req.connection.models.TimeCard; // Modèle dynamique
+
     // Récupérer la timeCard existante pour vérifier si les champs n'ont pas changé
     let timeCard = await TimeCard.findOne({ employeeId, day });
-    // Si la timeCard existe déjà, on met à jour les champs non définis
+
+    // Si la timeCard existe déjà, on met à jour les champs définis
     if (timeCard) {
-      // On garde les valeurs existantes et on met à jour celles qui sont définies
       if (updateFields.startTime !== undefined) timeCard.startTime = updateFields.startTime;
       if (updateFields.endTime !== undefined) timeCard.endTime = updateFields.endTime;
       if (updateFields.tel !== undefined) timeCard.tel = updateFields.tel;
       if (updateFields.powerbank !== undefined) timeCard.powerbank = updateFields.powerbank;
       if (updateFields.lastDelivery !== undefined) timeCard.lastDelivery = updateFields.lastDelivery;
       if (updateFields.fuelCard !== undefined) timeCard.fuelCard = updateFields.fuelCard;
+      if (updateFields.staging !== undefined) timeCard.staging = updateFields.staging;       // ✅ NEW
+      if (updateFields.waveTime !== undefined) timeCard.waveTime = updateFields.waveTime;     // ✅ NEW
+      if (updateFields.refueled !== undefined) timeCard.refueled = !!updateFields.refueled;
 
-      // Sauvegarder les modifications
+
       await timeCard.save();
     } else {
       // Si la timeCard n'existe pas, créer une nouvelle
@@ -147,6 +168,10 @@ exports.updateOrCreateTimeCard = async (req, res) => {
         powerbank: updateFields.powerbank || null,
         lastDelivery: updateFields.lastDelivery || null,
         fuelCard: updateFields.fuelCard || null,
+        staging: updateFields.staging || '',        // ✅ NEW
+        waveTime: updateFields.waveTime || '',       // ✅ NEW
+        refueled: updateFields.refueled === undefined ? false : !!updateFields.refueled,
+
       });
 
       await timeCard.save();
@@ -157,6 +182,7 @@ exports.updateOrCreateTimeCard = async (req, res) => {
     res.status(500).json({ message: "Error updating or creating time card", error });
   }
 };
+
 
 // Get all time cards for a specific day
 exports.getTimeCardsByDay = async (req, res) => {
@@ -176,18 +202,22 @@ exports.getTimeCardsByDay = async (req, res) => {
 
 
 // Mettre à jour ou créer les attributs CortexDuree et CortexEndTime pour plusieurs TimeCards
+// Mettre à jour ou créer les attributs CortexDuree et CortexEndTime pour plusieurs TimeCards
 exports.bulkUpdateOrCreateCortexAttributes = async (req, res) => {
   try {
     const TimeCard = req.connection.models.TimeCard; // Modèle dynamique
-    const { updates } = req.body; // `updates` est un tableau contenant les IDs et les nouvelles valeurs.
+    const { updates } = req.body;
+
     if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(500).json({ message: "Invalid input. 'updates' should be a non-empty array." });
+      return res
+        .status(400)
+        .json({ message: "Invalid input. 'updates' should be a non-empty array." });
     }
 
     const results = [];
 
     for (const update of updates) {
-      const { id, CortexDuree, CortexEndTime, expoPushToken } = update;
+      const { id, CortexDuree, CortexEndTime, expoPushToken, staging, waveTime } = update;
 
       if (!id) {
         results.push({
@@ -199,85 +229,58 @@ exports.bulkUpdateOrCreateCortexAttributes = async (req, res) => {
       }
 
       let timeCard = await TimeCard.findById(id);
-      let shouldSendNotification = false;
+      let wasCreated = false;
 
       if (timeCard) {
-        // Vérifier s'il y a des différences avant de mettre à jour
-        const hasDureeChanged = CortexDuree !== undefined && timeCard.CortexDuree !== CortexDuree;
-        const hasEndTimeChanged = CortexEndTime !== undefined && timeCard.CortexEndTime !== CortexEndTime;
-
-        if (hasDureeChanged) timeCard.CortexDuree = CortexDuree;
-        if (hasEndTimeChanged) timeCard.CortexEndTime = CortexEndTime;
-
-        // Déterminer si une notification doit être envoyée
-        shouldSendNotification = (hasDureeChanged || hasEndTimeChanged) &&
-          expoPushToken &&
-          CortexDuree &&
-          CortexEndTime;
-
+        // Mise à jour simple (on met à jour seulement les champs fournis)
+        if (CortexDuree !== undefined) timeCard.CortexDuree = CortexDuree;
+        if (CortexEndTime !== undefined) timeCard.CortexEndTime = CortexEndTime;
+        if (staging !== undefined) timeCard.staging = staging;
+        if (waveTime !== undefined) timeCard.waveTime = waveTime;
         await timeCard.save();
-        results.push({
-          success: true,
-          message: "Time card updated successfully.",
-          data: timeCard,
-        });
       } else {
-        // Pour une nouvelle carte, on peut choisir d'envoyer ou non une notification
-        shouldSendNotification = expoPushToken && CortexDuree && CortexEndTime;
-
+        // Création si la carte n'existe pas
         timeCard = new TimeCard({
           _id: id,
-          CortexDuree: CortexDuree || null,
-          CortexEndTime: CortexEndTime || null,
+          CortexDuree: CortexDuree ?? null,
+          CortexEndTime: CortexEndTime ?? null,
+          staging: staging ?? "",
+          waveTime: waveTime ?? "",
         });
-
         await timeCard.save();
-
-        results.push({
-          success: true,
-          message: "Time card created successfully.",
-          data: timeCard,
-        });
+        wasCreated = true;
       }
 
-      if (shouldSendNotification) {
-        const screenPath = '(driver)/(tabs)/(Employe)/AssignedVanScreen';
+      // ✅ Notification dans tous les cas (si on a un token), avec message général
+      const screenPath = "(driver)/(tabs)/(Employe)/AssignedVanScreen";
+      const generalMessage = "Route details updated. Please open the app to review."; // message général
 
-        // Vérifier si CortexDuree est bien formaté et extraire les heures correctement
-        const dureeParts = CortexDuree.split(':');
-        if (dureeParts.length < 2) {
-          console.error("Format incorrect de CortexDuree:", CortexDuree);
-        }
-
-        const [hours, minutes] = dureeParts.map(Number);
-        const addMinutesToTime = (time, minutesToAdd) => {
-          const [hours, minutes] = time.split(':').map(Number);
-          const date = new Date();
-          date.setHours(hours, minutes + minutesToAdd, 0);
-
-          const newHours = String(date.getHours()).padStart(2, '0');
-          const newMinutes = String(date.getMinutes()).padStart(2, '0');
-
-          return `${newHours}:${newMinutes}`;
-        };
-
-        let adjustedEndTime = CortexEndTime;
-        if (hours > 5) {
-          adjustedEndTime = addMinutesToTime(CortexEndTime, 30);
-        }
-        const message = `Route updated! Ends at ${adjustedEndTime}, duration: ${CortexDuree} min. Check the app!`;
+      const notification = { attempted: false, sent: false };
+      if (expoPushToken) {
+        notification.attempted = true;
         try {
-          await sendPushNotification(expoPushToken, message, screenPath);
-        } catch (error) {
-          console.error("Erreur lors de l'envoi de la notification:", error);
+          await sendPushNotification(expoPushToken, generalMessage, screenPath);
+          notification.sent = true;
+        } catch (err) {
+          console.error("Push notification error:", err);
         }
       }
+
+      results.push({
+        success: true,
+        message: wasCreated ? "Time card created successfully." : "Time card updated successfully.",
+        data: timeCard,
+        notification,
+      });
     }
+
     res.status(200).json({ results });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error processing Cortex attributes.", error: error.message });
   }
 };
+
 
 
 exports.uploadTimeCardImage = async (req, res) => {
@@ -314,74 +317,175 @@ exports.uploadTimeCardImage = async (req, res) => {
 };
 
 
+
+
+
 exports.getConsolidatedTimeCards = async (req, res) => {
   try {
-    const { date } = req.params;
-    const models = req.connection.models;
+    // ex param: "Thu Sep 18 2025" (peut arriver URL-encodé)
+    const raw = req.params.date || '';
+    const decoded = decodeURIComponent(raw);
+    const dayStr = new Date(decoded).toDateString(); // normalisé
 
-    // 1) Assignations pour la date
-    const vanAssignments = await (models.VanAssignment.find({ date }) || []);
-    const employeeIds = vanAssignments.map(a => a.employeeId);
+    const models =
+      req.connection?.models ||
+      req.app.get('mongoose')?.models;
 
-    // 2) Disponibilités confirmées
-    const disponibilities = await (models.Disponibilite.find({
-      selectedDay: new Date(date).toDateString(),
-      publish: true,
-      employeeId: { $in: employeeIds }
-    }) || []);
+    // 1) Assignations pour la date (tolère les deux formats: brut et normalisé)
+    const vanAssignments =
+      (await models.VanAssignment.find({
+        date: { $in: [decoded, dayStr] },
+      }).lean()) || [];
 
-    const shiftIds = [...new Set(disponibilities.map(d => d.shiftId))];
+    const employeeIdStrs = vanAssignments
+      .map((a) => String(a.employeeId))
+      .filter(Boolean);
 
-    // 3) Parallèle: employés, shifts, vans, timecards, devices, fuel cards
+    const employeeObjIds = employeeIdStrs.map((id) => new Types.ObjectId(id));
+
+    // Si aucune assignation, renvoyer un payload “vide” (cohérent avec le front)
+    if (employeeObjIds.length === 0) {
+      return res.status(200).json({
+        employees: {},
+        shifts: {},
+        vans: {},
+        disponibilities: {},
+        timeCards: [],
+        vanAssignments: [],
+        functionalPhones: [],
+        functionalPowerBanks: [],
+        functionalFuelCards: [],
+        usedFuelCardIds: [],
+        usedPhoneIds: [],
+        usedPowerBankIds: [],
+      });
+    }
+
+    // 2) Disponibilités confirmées du jour pour ces employés
+    const disponibilities =
+      (await models.Disponibilite.find(
+        {
+          selectedDay: dayStr, // même normalisation que le front
+          publish: true,
+          employeeId: { $in: employeeIdStrs }, // stocké string dans cette collection
+        },
+        {
+          _id: 1,
+          employeeId: 1,
+          shiftId: 1,
+          confirmation: 1,
+          selectedDay: 1,
+          partnerType: 1,
+          partnerEmployeeId: 1,
+        }
+      ).lean()) || [];
+
+    // Inclure aussi les partenaires (helper/replacement)
+    const partnerIdStrs = [
+      ...new Set(
+        disponibilities
+          .map((d) => d.partnerEmployeeId && String(d.partnerEmployeeId))
+          .filter(Boolean)
+      ),
+    ];
+
+    // IDs finaux = employés assignés au van + partenaires
+    const allEmployeeIdStrs = Array.from(
+      new Set([...employeeIdStrs, ...partnerIdStrs])
+    );
+    const allEmployeeObjIds = allEmployeeIdStrs.map(
+      (id) => new Types.ObjectId(id)
+    );
+
+    const shiftIds = [
+      ...new Set(disponibilities.map((d) => String(d.shiftId)).filter(Boolean)),
+    ];
+
+    // 3) Récupérations parallèles
+    const vanIds = [
+      ...new Set(vanAssignments.map((a) => String(a.vanId)).filter(Boolean)),
+    ];
+
     const [
       employees,
       shifts,
       vans,
       timeCards,
-      [functionalPhones, functionalPowerBanks],
-      functionalFuelCards
-    ] = await Promise.all([
-      models.Employee.find({ _id: { $in: employeeIds } }) || [],
-      models.Shift.find({ _id: { $in: shiftIds } }) || [],
-      models.Vehicle.find({ _id: { $in: [...new Set(vanAssignments.map(a => a.vanId))] } }) || [],
-      models.TimeCard.find({ day: date }) || [],
-      Promise.all([
-        models.Phone.find({ functional: true }),
-        models.PowerBank.find({ functional: true })
-      ]),
-      models.FuelCard.find({ functional: true }) || []     // ⬅️ NOUVEAU
-    ]);
-
-    // (optionnel) ids déjà utilisés ce jour-là
-    const usedFuelCardIds = [
-      ...new Set(
-        (timeCards.map(tc => tc.fuelCard).filter(Boolean))
-      )
-    ];
-
-    // 4) Structurer la réponse
-    const response = {
-      employees: employees.reduce((acc, emp) => ({ ...acc, [emp._id]: emp }), {}),
-      shifts: shifts.reduce((acc, shift) => ({ ...acc, [shift._id]: shift }), {}),
-      vans: vans.reduce((acc, van) => ({ ...acc, [van._id]: van }), {}),
-      disponibilities: disponibilities.reduce((acc, disp) => ({ ...acc, [disp.employeeId]: disp }), {}),
-      timeCards,
-      vanAssignments,
+      // ✅ Phones & PowerBanks : inventaire complet fonctionnel (comme FuelCard)
       functionalPhones,
       functionalPowerBanks,
-      functionalFuelCards,    // ⬅️ NOUVEAU
-      usedFuelCardIds         // ⬅️ OPTIONNEL (si tu veux t’en servir côté front)
-    };
+      functionalFuelCards,
+    ] = await Promise.all([
+      models.Employee.find({ _id: { $in: allEmployeeObjIds } }).lean() || [],
+      models.Shift.find({ _id: { $in: shiftIds } }).lean() || [],
+      models.Vehicle.find({ _id: { $in: vanIds } }).lean() || [],
+      models.TimeCard.find({ day: { $in: [decoded, dayStr] } }).lean() || [],
 
-    res.status(200).json(response);
+      // ➜ IMPORTANT : plus de filtre sur van/employé du jour
+      models.Phone.find({ functional: true }).lean(),
+      models.PowerBank.find({ functional: true }).lean(),
 
+      // FuelCards : inchangé (toutes les fonctionnelles)
+      models.FuelCard.find({ functional: true }).lean() || [],
+    ]);
+
+    // 4) Ids d'équipements déjà utilisés ce jour (pour filtrage UI éventuel)
+    const usedFuelCardIds = [
+      ...new Set(
+        (timeCards.map((tc) => tc.fuelCard).filter(Boolean) || []).map(String)
+      ),
+    ];
+
+    const usedPhoneIds = [
+      ...new Set(
+        (timeCards.map((tc) => tc.tel).filter(Boolean) || []).map(String)
+      ),
+    ];
+
+    const usedPowerBankIds = [
+      ...new Set(
+        (timeCards.map((tc) => tc.powerbank).filter(Boolean) || []).map(String)
+      ),
+    ];
+
+    // 5) Réponse normalisée (objets indexés)
+    res.status(200).json({
+      employees: employees.reduce((acc, emp) => {
+        acc[String(emp._id)] = emp;
+        return acc;
+      }, {}),
+      shifts: shifts.reduce((acc, s) => {
+        acc[String(s._id)] = s;
+        return acc;
+      }, {}),
+      vans: vans.reduce((acc, v) => {
+        acc[String(v._id)] = v;
+        return acc;
+      }, {}),
+      // côté front: disponibilities[employeeId] => { shiftId, partnerType, partnerEmployeeId, ... }
+      disponibilities: disponibilities.reduce((acc, d) => {
+        acc[String(d.employeeId)] = d;
+        return acc;
+      }, {}),
+      timeCards,
+      vanAssignments,
+
+      // ✅ Inventaires complets (fonctionnels)
+      functionalPhones,
+      functionalPowerBanks,
+      functionalFuelCards,
+
+      // ✅ Déjà utilisés aujourd'hui
+      usedFuelCardIds,
+      usedPhoneIds,
+      usedPowerBankIds,
+    });
   } catch (error) {
     console.error('Erreur dans getConsolidatedTimeCards:', error);
     res.status(500).json({
       error: 'Erreur lors de la consolidation des données',
-      details: error.message
+      details: error?.message || String(error),
     });
   }
 };
-
 

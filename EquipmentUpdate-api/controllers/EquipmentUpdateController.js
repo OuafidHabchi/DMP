@@ -5,7 +5,6 @@ exports.createEquipmentUpdate = async (req, res) => {
   try {
     const EquipmentUpdate = req.connection.models.EquipmentUpdate;
     const { employeeName, vanName, localTime, userId, photoType, day } = req.body;
-    console.log('Received body:', req.body);
 
     if (!employeeName || !vanName || !localTime) {
       return res.status(400).json({ message: "Les informations de l'employé, du van et du temps sont requises." });

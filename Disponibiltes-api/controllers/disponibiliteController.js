@@ -219,7 +219,6 @@ exports.confirmDisponibilite = async (req, res) => {
         }
 
         const dispoId = req.params.id;
-        console.log(dispoId)
         if (!dispoId) {
             return res.status(400).json({ error: "L'ID de la disponibilité est requis." });
         }
@@ -510,7 +509,7 @@ exports.updateMultipleDisponibilitesConfirmation = async (req, res) => {
                 if (employee?.expoPushToken) {
                     let screen = '';
                     if (employee.role === 'manager') {
-                        screen = '(manager)/(tabs)/(Dispatcher)/Confirmation';
+                        screen = '(manager)/(tabs)/(Dispatcher)/ShiftCancellation';
                     } else if (employee.role === 'driver') {
                         screen = '(driver)/(tabs)/(Employe)/AcceuilEmployee';
                     }
@@ -580,22 +579,7 @@ exports.updateDisponibilitePresenceById = async (req, res) => {
             presence: disponibilite.presence
         });
 
-        // ✅ 🔥 If presence is NOT confirmed, notify managers
-        if (disponibilite.presence !== 'confirmed') {
-            const managers = await Employee.find({ role: 'manager' }).select('expoPushToken');
-
-            for (const manager of managers) {
-                if (manager.expoPushToken) {
-                    const notificationBody = `${employee?.name} ${employee?.familyName} has declined to work on ${disponibilite.selectedDay}.`;
-
-                    await sendPushNotification(
-                        manager.expoPushToken,
-                        notificationBody,
-                        '(manager)/(tabs)/(Dispatcher)/Confirmation'
-                    );
-                }
-            }
-        }
+     
 
         res.status(200).json(disponibilite);
 
@@ -851,4 +835,129 @@ exports.unsuspendDisponibilites = async (req, res) => {
     }
 };
 
+
+
+
+// SET / UPDATE partner
+exports.setPartner = async (req, res) => {
+  try {
+    const Disponibilite = req.connection.models.Disponibilite;
+    if (!Disponibilite) {
+      return res.status(500).json({ error: "Model not available" });
+    }
+
+    const { id } = req.params;
+    const { partnerType, partnerEmployeeId } = req.body; // strings du front
+
+    // 1) Charger la dispo actuelle
+    const current = await Disponibilite.findById(id);
+    if (!current) {
+      return res.status(404).json({ error: "Disponibilite not found" });
+    }
+
+    // 2) Validations simples
+    if (!partnerType || !["helper", "replacement"].includes(partnerType)) {
+      return res.status(400).json({ error: "Invalid partnerType" });
+    }
+    if (!partnerEmployeeId || typeof partnerEmployeeId !== "string") {
+      return res.status(400).json({ error: "Invalid partnerEmployeeId" });
+    }
+
+    // Empêcher de choisir la même personne
+    if (partnerEmployeeId === String(current.employeeId)) {
+      return res.status(400).json({ error: "Partner cannot be the same employee" });
+    }
+
+    let updatePayload = {};
+
+    if (partnerType === "helper") {
+      // Cas A — Helper: on ne touche pas à employeeId
+      updatePayload = {
+        partnerType: "helper",
+        partnerEmployeeId: partnerEmployeeId,
+      };
+
+    } else if (partnerType === "replacement") {
+      // Cas B — Replacement: on transfère la dispo au remplaçant
+      const originalEmployeeId = String(current.employeeId);
+
+      updatePayload = {
+        // Celui qui travaille maintenant = remplaçant
+        employeeId: partnerEmployeeId,
+        // On mémorise qui a été remplacé
+        partnerType: "replacement",
+        partnerEmployeeId: originalEmployeeId,
+      };
+
+    }
+
+    // 3) Update et retour
+    const updated = await Disponibilite.findByIdAndUpdate(
+      id,
+      updatePayload,
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: "Disponibilite not found after update" });
+    }
+
+    res.status(200).json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// CLEAR partner
+exports.clearPartner = async (req, res) => {
+
+  try {
+    const Disponibilite = req.connection.models.Disponibilite;
+    if (!Disponibilite) {
+      return res.status(500).json({ error: "Model not available" });
+    }
+
+    const { id } = req.params;
+
+    // 1) Charger la dispo pour savoir si on doit "reverse" un replacement
+    const current = await Disponibilite.findById(id);
+    if (!current) {
+      return res.status(404).json({ error: "Disponibilite not found" });
+    }
+
+    let updatePayload = {};
+
+    if (current.partnerType === "replacement" && current.partnerEmployeeId) {
+      // Cas replacement: on restitue la dispo à l'original
+      updatePayload = {
+        employeeId: current.partnerEmployeeId, // remettre l'ancien employé
+        partnerType: "",
+        partnerEmployeeId: "",
+      };
+    } else {
+      // Cas helper ou aucun partenaire: simple reset
+      updatePayload = {
+        partnerType: "",
+        partnerEmployeeId: "",
+      };
+    }
+
+    // 2) Update et retour
+    const updated = await Disponibilite.findByIdAndUpdate(
+      id,
+      updatePayload,
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: "Disponibilite not found after update" });
+    }
+
+    res.status(200).json(updated);
+  } catch (err) {
+    console.error("❌ [clearPartner] Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
 

@@ -246,7 +246,6 @@ exports.getEmployeesPresenceByDate = async (req, res) => {
 
 
 exports.getDisposNotWorkedByDate = async (req, res) => {
-    console.log("getDisposNotWorkedByDate called with query:", req.query);
     try {
         const { date } = req.query;
         if (!date) {

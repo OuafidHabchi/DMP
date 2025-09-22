@@ -13,7 +13,7 @@ router.use((req, res, next) => {
 router.use(dbMiddleware);
 
 // Créer un nouveau powerbank
-router.post('/powerbanks', powerBankController.createPowerBank);
+router.post('/powerbanks/create', powerBankController.createPowerBank); // ✅ corrigé (comme phones/fuelcards)
 
 // Obtenir tous les powerbanks
 router.get('/powerbanks', powerBankController.getAllPowerBanks);
@@ -27,7 +27,9 @@ router.put('/powerbanks/:id', powerBankController.updatePowerBank);
 // Supprimer un powerbank
 router.delete('/powerbanks/:id', powerBankController.deletePowerBank);
 
-// Nouvelle route pour les powerbanks fonctionnels
+// Obtenir tous les powerbanks fonctionnels
 router.get('/powerbanks/functional/all', powerBankController.getFunctionalPowerBanks);
+
+
 
 module.exports = router;

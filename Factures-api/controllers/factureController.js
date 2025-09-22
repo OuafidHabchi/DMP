@@ -36,7 +36,6 @@ exports.createFacture = async (req, res) => {
     }
 
     // 1) Upload first
-    console.log('[createFacture] Uploading', files.length, 'file(s)…');
     const uploaded = await uploadMulterFiles(files, {
       pathPrefix: `factures/${Date.now()}` // temp folder; doc _id not known yet
     });
@@ -47,7 +46,6 @@ exports.createFacture = async (req, res) => {
     }
 
     const fileUrl = uploaded[0].url;
-    console.log('[createFacture] Uploaded URL:', fileUrl);
 
     // 2) Now create the document WITH fileUrl to satisfy schema
     const facture = await Factures.create({

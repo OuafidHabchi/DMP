@@ -1,13 +1,27 @@
 exports.createPowerBank = async (req, res) => {
+    
     try {
-        const PowerBank = req.connection.models.PowerBank; // Modèle dynamique
-        const powerBank = new PowerBank(req.body);
+        const PowerBank = req.connection.models.PowerBank;
+
+
+        // ✅ récupération avec les champs ajoutés
+        const { name, functional, comment, linkedType, linkedId } = req.body;
+
+        const powerBank = new PowerBank({
+            name,
+            functional,
+            comment,
+            linkedType,
+            linkedId,
+        });
+
         await powerBank.save();
         res.status(200).json(powerBank);
     } catch (error) {
         res.status(500).json({ message: 'Erreur lors de la création du PowerBank', error });
     }
 };
+
 
 exports.getAllPowerBanks = async (req, res) => {
     try {

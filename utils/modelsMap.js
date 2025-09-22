@@ -33,6 +33,8 @@ const Factures = require('../Factures-api/models/Facture')
 const Process = require('../hiring-process-api/models/processSchema')
 const Candidate = require('../candidature-api/models/candidateSchema')
 const FuelCard = require('../fuelcard-api/models/FuelCard');
+const Training = require('../training-api/models/trainingSchema');
+
 
 
 // Mapping des modèles
@@ -69,6 +71,7 @@ const modelsMap = {
   Process,
   Candidate,
   FuelCard,
+  Training
 };
 
 /**

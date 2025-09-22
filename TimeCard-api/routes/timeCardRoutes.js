@@ -18,7 +18,8 @@ router.use((req, res, next) => {
     'Phone',
     'PowerBank',
     'Comment',
-    'FuelCard'
+    'FuelCard',
+    'Training'
   ];
   next();
 });

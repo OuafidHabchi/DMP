@@ -17,7 +17,6 @@ exports.createProcess = async (req, res) => {
     if (existing) {
       return res.status(400).json({ error: "Le processus existe déjà." });
     }
-    console.log(req.body);
     
 
     const { steps, ownerId } = req.body;

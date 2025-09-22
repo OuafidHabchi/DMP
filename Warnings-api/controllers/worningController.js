@@ -56,7 +56,6 @@ exports.createWorning = async (req, res) => {
             template,
             susNombre,
         } = req.body;
-        console.log(req.body);
 
         const Worning = req.connection.models.Worning;
         let Employe = req.connection.models.Employee; // ✅ Vérifier le modèle `Employee`
@@ -94,7 +93,6 @@ exports.createWorning = async (req, res) => {
         if (expoPushToken) {
             const employeeConcerned = await Employe.findById(employeID).select('role expoPushToken name');
             if (!employeeConcerned) {
-                console.log("Employé non trouvé");
                 return res.status(200).json(savedWorning);
             }
 
