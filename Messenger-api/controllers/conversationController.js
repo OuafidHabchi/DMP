@@ -1,4 +1,8 @@
-// /controllers/conversationController.js
+const storage = require('../../utils/storage/index'); // ton adapter Spaces
+const { sendPushNotification } = require('../../utils/notifications');
+const path = require('path');
+const { deleteByUrls } = require('../../utils/storage/uploader'); // ajoute cet import en haut
+
 
 // Créer une nouvelle conversation
 exports.createConversation = async (req, res) => {
@@ -23,11 +27,10 @@ exports.createConversation = async (req, res) => {
   }
 };
 
-
 // Récupérer les conversations d'un employé
 exports.getConversationsByEmployee = async (req, res) => {
   try {
-    const Conversation = req.connection.models.Conversation; // Modèle dynamique
+    const Conversation = req.connection.models.Conversation;
     const { employeeId } = req.params;
 
     const conversations = await Conversation.find({ participants: employeeId });
@@ -40,51 +43,61 @@ exports.getConversationsByEmployee = async (req, res) => {
 // Supprimer une conversation et tous les messages associés
 exports.deleteConversation = async (req, res) => {
   try {
-    const Conversation = req.connection.models.Conversation; // Modèle dynamique
-    const Message = req.connection.models.Message; // Modèle dynamique
+    const Conversation = req.connection.models.Conversation;
+    const Message = req.connection.models.Message;
     const { conversationId } = req.params;
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      return res.status(500).json({ error: 'Conversation non trouvée.' });
+      return res.status(404).json({ error: 'Conversation non trouvée.' });
     }
 
-    // Supprimer la conversation
-    await Conversation.findByIdAndDelete(conversationId);
+    // 1) Récupérer tous les messages liés
+    const messages = await Message.find({ conversationId });
 
-    // Supprimer tous les messages associés à cette conversation
+    // 2) Extraire les URLs de fichiers
+    const urls = messages
+      .map((m) => m.fileUrl)
+      .filter((u) => !!u);
+
+    // 3) Supprimer les fichiers dans Spaces
+    if (urls.length > 0) {
+      try {
+        await deleteByUrls(urls);
+      } catch (err) {
+        console.warn('[deleteConversation] Erreur suppression fichiers Spaces:', err?.message || err);
+      }
+    }
+
+    // 4) Supprimer la conversation et ses messages
+    await Conversation.findByIdAndDelete(conversationId);
     await Message.deleteMany({ conversationId });
 
-    res.status(200).json({ message: 'Conversation et messages associés supprimés.' });
+    res.status(200).json({ message: 'Conversation, messages et fichiers associés supprimés.' });
   } catch (error) {
+    console.error('deleteConversation error:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression de la conversation.' });
   }
 };
 
-
-
-// conversationController.js
+// Vérifier si un utilisateur a des messages non lus
 exports.hasUnreadMessages = async (req, res) => {
   try {
-    const Conversation = req.connection.models.Conversation; // Modèle dynamique
-    const Message = req.connection.models.Message; // Modèle dynamique
+    const Conversation = req.connection.models.Conversation;
+    const Message = req.connection.models.Message;
     const { userId } = req.params;
-    // Find all conversations involving the user
+
     const conversations = await Conversation.find({ participants: userId });
     const unreadStatus = {};
 
     for (const conversation of conversations) {
-      // Check if there are messages that haven't been read by the current user
       const hasUnreadMessages = await Message.exists({
         conversationId: conversation._id,
-        readBy: { $ne: userId }, // Messages where userId is not in `readBy`
+        readBy: { $ne: userId },
       });
-
-      // Store the unread status for each conversation
       unreadStatus[conversation._id] = hasUnreadMessages;
     }
 
-    // Return the unread status object to the client
     res.status(200).json(unreadStatus);
   } catch (error) {
     console.error('Error checking unread messages:', error);
@@ -92,27 +105,22 @@ exports.hasUnreadMessages = async (req, res) => {
   }
 };
 
-
+// Ajouter des participants
 exports.addParticipants = async (req, res) => {
   try {
-    const Conversation = req.connection.models.Conversation; // Modèle dynamique
+    const Conversation = req.connection.models.Conversation;
     const { conversationId } = req.params;
     const { newParticipants } = req.body;
 
-    // Check if the conversation exists
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       return res.status(500).json({ error: 'Conversation not found.' });
     }
 
-    // Merge new participants with existing participants, removing duplicates
     const updatedParticipants = [...new Set([...conversation.participants, ...newParticipants])];
-
-    // Update the conversation with the new participants
     conversation.participants = updatedParticipants;
     await conversation.save();
 
-    // Emit a Socket.IO event to update the participants in real time
     const io = req.app.get('socketio');
     io.to(conversationId).emit('participantsUpdated', {
       conversationId,
@@ -124,5 +132,3 @@ exports.addParticipants = async (req, res) => {
     res.status(500).json({ error: 'Error adding participants.' });
   }
 };
-
-

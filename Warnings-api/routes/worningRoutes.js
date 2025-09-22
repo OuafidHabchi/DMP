@@ -5,6 +5,7 @@ const dbMiddlewareWorning = require('../midleware/dbMiddlewareWorning');
 const path = require('path');
 const fs = require('fs');
 
+
 const router = express.Router();
 
 // Configuration de multer
@@ -13,12 +14,8 @@ if (!fs.existsSync(uploadDirectory)) {
   fs.mkdirSync(uploadDirectory, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDirectory),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
-});
+const upload = multer({ storage: multer.memoryStorage() });
 
-const upload = multer({ storage });
 
 // Middleware pour loguer les requêtes
 router.use((req, res, next) => {
@@ -74,5 +71,26 @@ router.get(
   dbMiddlewareWorning,
   worningController.getTemplateWarnings
 );
+
+
+
+// Multer en mémoire pour cette route (nécessaire pour uploader vers Spaces depuis buffer)
+const uploadMem = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith('image/')) return cb(null, true);
+    return cb(new Error('Only image files are allowed!'));
+  },
+});
+
+// Nouvelle route dédiée au composant (URL ou fichier)
+router.post(
+  '/component',
+  uploadMem.single('photo'),      // accepte File sous "photo" (sinon URL dans body.photo)
+  dbMiddlewareWorning,
+  worningController.createWorningFromComponent
+);
+
 
 module.exports = router;

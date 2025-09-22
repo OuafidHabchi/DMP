@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { sendPushNotification } = require('../../utils/notifications');
 
+
 // Définir le dossier où les images seront stockées
 const uploadDirectory = path.join(__dirname, '../uploads-wornings');
 
@@ -41,128 +42,148 @@ exports.getWorningById = async (req, res) => {
 
 // Ajouter un nouveau warning
 exports.createWorning = async (req, res) => {
-    try {
-        const {
-            employeID,
-            type,
-            raison,
-            description,
-            severity,
-            date,
-            read,
-            signature,
-            link,
-            expoPushToken,
-            template,
-            susNombre,
-        } = req.body;
+  try {
+    const {
+      employeID,
+      type,
+      raison,
+      description,
+      severity,
+      date,
+      read,
+      signature,
+      link,
+      expoPushToken,
+      template,
+      susNombre,
+    } = req.body;
 
-        const Worning = req.connection.models.Worning;
-        let Employe = req.connection.models.Employee; // ✅ Vérifier le modèle `Employee`
+    const Worning = req.connection.models.Worning;
+    let Employe = req.connection.models.Employee;
 
-        if (!Employe) {
-            // 🔥 Dynamically require and initialize the Employee model
-            const employeeSchema = require('../../Employes-api/models/Employee'); // Adjust the path if necessary
-            Employe = req.connection.model('Employee', employeeSchema);
-        }
-        // Création du warning avec les données reçues
-        const newWorning = new Worning({
-            employeID,
-            type,
-            raison,
-            description,
-            severity: severity || "",
-            date,
-            link,
-            read: read === "true",
-            signature: signature === "true",
-            template,
-            susNombre,
-        });
-
-
-        // Gestion du fichier photo si présent
-        if (req.file) {
-            newWorning.photo = `uploads-wornings/${req.file.filename}`;
-        }
-        // Sauvegarde du warning dans la base de données
-        const savedWorning = await newWorning.save();
-
-
-        // Envoi d'une notification si un token Expo est fourni
-        if (expoPushToken) {
-            const employeeConcerned = await Employe.findById(employeID).select('role expoPushToken name');
-            if (!employeeConcerned) {
-                return res.status(200).json(savedWorning);
-            }
-
-            const targetScreen = employeeConcerned.role === 'manager'
-                ? '(manager)/(tabs)/(RH)/Warnings'
-                : '(driver)/(tabs)/(Employe)/EmployeeWarnings';
-
-            const notificationBody = `You have received a new ${type}. Open the app for more details.`;
-            try {
-                await sendPushNotification(expoPushToken, notificationBody, targetScreen);
-            } catch (error) {
-
-            }
-        }
-
-        // Réponse avec le warning sauvegardé
-        res.status(200).json(savedWorning);
-    } catch (err) {
-        // Réponse en cas d'erreur
-        res.status(500).json({
-            message: "Erreur lors de la création du warning",
-            error: err.message || err,
-        });
+    if (!Employe) {
+      const employeeSchema = require('../../Employes-api/models/Employee');
+      Employe = req.connection.model('Employee', employeeSchema);
     }
+
+    const newWorning = new Worning({
+      employeID,
+      type,
+      raison,
+      description,
+      severity: severity || "",
+      date,
+      link,
+      read: read === "true",
+      signature: signature === "true",
+      template,
+      susNombre,
+    });
+
+    // ✅ Upload photo vers Spaces via utils/storage/uploader
+    if (req.file && req.file.buffer) {
+      const { uploadMulterFiles } = require('../../utils/storage/uploader');
+      const uploaded = await uploadMulterFiles([req.file], { pathPrefix: 'warnings' });
+      if (uploaded.length > 0) {
+        newWorning.photo = uploaded[0].url; // URL Spaces
+      }
+    }
+
+    const savedWorning = await newWorning.save();
+
+    // ✅ Notification push
+    if (expoPushToken) {
+      const employeeConcerned = await Employe.findById(employeID).select('role expoPushToken name');
+      if (employeeConcerned) {
+        const targetScreen =
+          employeeConcerned.role === 'manager'
+            ? '(manager)/(tabs)/(RH)/Warnings'
+            : '(driver)/(tabs)/(Employe)/EmployeeWarnings';
+
+        const notificationBody = `You have received a new ${type}. Open the app for more details.`;
+        try {
+          await sendPushNotification(expoPushToken, notificationBody, targetScreen);
+        } catch (error) {
+          console.error("❌ Erreur push:", error);
+        }
+      }
+    }
+
+    res.status(200).json(savedWorning);
+  } catch (err) {
+    console.error("❌ Erreur createWorning:", err);
+    res.status(500).json({
+      message: "Erreur lors de la création du warning",
+      error: err.message || err,
+    });
+  }
 };
+
+
 
 
 // Mettre à jour un warning
 exports.updateWorning = async (req, res) => {
-    try {
-        const Worning = req.connection.models.Worning;
-        const updateData = { ...req.body };
+  try {
+    const Worning = req.connection.models.Worning;
+    const updateData = { ...req.body };
 
-        if (req.body.removePhoto === "true") {
-            updateData.photo = null;
-        }
-
-        // Gestion du fichier photo si présent
-        if (req.file) {
-            updateData.photo = `uploads-wornings/${req.file.filename}`;
-        }
-
-        const updatedWorning = await Worning.findByIdAndUpdate(req.params.id, updateData, { new: true });
-        if (!updatedWorning) return res.status(500).json({ message: "Warning introuvable" });
-
-        res.status(200).json(updatedWorning);
-    } catch (err) {
-        res.status(500).json({ message: "Erreur lors de la mise à jour du warning", error: err });
+    // Si l'utilisateur demande la suppression de la photo
+    if (req.body.removePhoto === "true") {
+      updateData.photo = null;
     }
+
+    // Gestion du fichier photo si présent
+    if (req.file && req.file.buffer) {
+      const { uploadMulterFiles } = require('../../utils/storage/uploader');
+      const uploaded = await uploadMulterFiles([req.file], { pathPrefix: 'warnings' });
+      if (uploaded.length > 0) {
+        updateData.photo = uploaded[0].url; // URL Spaces
+      }
+    }
+
+    const updatedWorning = await Worning.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedWorning) {
+      return res.status(500).json({ message: "Warning introuvable" });
+    }
+
+    res.status(200).json(updatedWorning);
+  } catch (err) {
+    res.status(500).json({
+      message: "Erreur lors de la mise à jour du warning",
+      error: err.message || err,
+    });
+  }
 };
 
 // Supprimer un warning
 exports.deleteWorning = async (req, res) => {
-    try {
-        const Worning = req.connection.models.Worning;
-        const deletedWorning = await Worning.findByIdAndDelete(req.params.id);
+  try {
+    const Worning = req.connection.models.Worning;
+    const deletedWorning = await Worning.findByIdAndDelete(req.params.id);
 
-        if (!deletedWorning) return res.status(500).json({ message: 'Warning introuvable' });
-
-        if (deletedWorning.photo) {
-            const filePath = path.join(__dirname, '../', deletedWorning.photo);
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
-        }
-
-        res.status(200).json({ message: 'Warning supprimé avec succès' });
-    } catch (err) {
-        res.status(500).json({ message: 'Erreur lors de la suppression du warning', error: err });
+    if (!deletedWorning) {
+      return res.status(500).json({ message: 'Warning introuvable' });
     }
+
+    // ✅ Suppression de la photo dans Spaces si présente
+    if (deletedWorning.photo) {
+      const { deleteByUrls } = require('../../utils/storage/uploader');
+      await deleteByUrls([deletedWorning.photo]);
+    }
+
+    res.status(200).json({ message: 'Warning supprimé avec succès' });
+  } catch (err) {
+    res.status(500).json({
+      message: 'Erreur lors de la suppression du warning',
+      error: err.message || err,
+    });
+  }
 };
 
 // Obtenir tous les warnings par employeID
@@ -263,3 +284,75 @@ exports.getTemplateWarnings = async (req, res) => {
         res.status(200).json([]);
     }
 };
+
+
+// Créer un warning (spécial composant) : accepte soit une URL photo (req.body.photo), soit un fichier (req.file)
+exports.createWorningFromComponent = async (req, res) => {
+  try {
+    const {
+      employeID,
+      type,
+      raison,
+      description,
+      severity,
+      date,
+      read,
+      signature,
+      link,
+      expoPushToken,
+      template,
+      susNombre,
+    } = req.body;
+
+    const Worning = req.connection.models.Worning;
+    let Employe = req.connection.models.Employee;
+    if (!Employe) {
+      const employeeSchema = require('../../Employes-api/models/Employee');
+      Employe = req.connection.model('Employee', employeeSchema);
+    }
+
+    const doc = new Worning({
+      employeID,
+      type,
+      raison,
+      description,
+      severity: type === 'suspension' ? '' : (severity || ''),
+      date,
+      link,
+      read: read === 'true' || read === true,
+      signature: signature === 'true' || signature === true,
+      template,
+      susNombre,
+    });
+
+    // 1) URL déjà hébergée (CDN)
+    if (typeof req.body.photo === 'string' && /^https?:\/\//i.test(req.body.photo)) {
+      doc.photo = req.body.photo;
+    }
+    // 2) Fichier (Multer memory)
+    else if (req.file) {
+      const { uploadMulterFiles } = require('../../utils/storage/uploader');
+      const uploaded = await uploadMulterFiles([req.file], { pathPrefix: `warnings/${employeID}` });
+      if (uploaded?.[0]?.url) doc.photo = uploaded[0].url;
+    }
+
+    const saved = await doc.save();
+
+    // Push (optionnel)
+    if (expoPushToken) {
+      try {
+        const emp = await Employe.findById(employeID).select('role');
+        const screen = emp?.role === 'manager'
+          ? '(manager)/(tabs)/(RH)/Warnings'
+          : '(driver)/(tabs)/(Employe)/EmployeeWarnings';
+        const body = `You have received a new ${type}. Open the app for more details.`;
+        await sendPushNotification(expoPushToken, body, screen);
+      } catch {}
+    }
+
+    return res.status(200).json(saved);
+  } catch (err) {
+    return res.status(500).json({ message: 'Erreur création warning (component)', error: err.message || err });
+  }
+};
+

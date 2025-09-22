@@ -1,52 +1,49 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
 const messageController = require('../controllers/messageController');
 const dbMiddleware = require('../MidleWareMessenger/middlewareMessenger');
 
 const router = express.Router();
 
-const UPLOAD_DIR = path.resolve(__dirname, '../uploads'); // Correct path for the uploads directory
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 150 MB
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'video/mp4', 'video/quicktime', 'application/pdf'];
-const ALLOWED_EXTENSIONS = ['.jpeg', '.jpg', '.png', '.mp4', '.mov', '.pdf'];
+// Limites
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'video/mp4',
+  'video/quicktime',
+  'application/pdf',
+  'audio/mpeg',
+  'audio/mp3',
+];
+const ALLOWED_EXTENSIONS = [
+  '.jpeg',
+  '.jpg',
+  '.png',
+  '.mp4',
+  '.mov',
+  '.pdf',
+  '.mp3',
+];
 
-// Créer le dossier uploads s'il n'existe pas
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `file-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  },
-});
-
-const fileFilter = (req, file, cb) => {
-  const fileExtension = path.extname(file.originalname).toLowerCase();
-  if (ALLOWED_MIME_TYPES.includes(file.mimetype) && ALLOWED_EXTENSIONS.includes(fileExtension)) {
-    cb(null, true);
-  } else {
-    cb(new Error(`Type de fichier non pris en charge : "${fileExtension}"`));
-  }
-};
-
+// Multer -> stockage en mémoire
 const upload = multer({
-  storage,
-  fileFilter,
+  storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (req, file, cb) => {
+    const ext = require('path').extname(file.originalname).toLowerCase();
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype) && ALLOWED_EXTENSIONS.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Type de fichier non pris en charge : "${ext}"`));
+    }
+  },
 });
 
+// Middleware d’upload
 const handleFileUpload = (req, res, next) => {
   upload.single('file')(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      return res.status(500).json({ error: `Erreur Multer: ${err.message}` });
-    } else if (err) {
+    if (err) {
       return res.status(500).json({ error: `Erreur fichier: ${err.message}` });
     }
     next();
@@ -61,7 +58,9 @@ router.post(
     try {
       await dbMiddleware(req, res, next);
     } catch (error) {
-      return res.status(500).json({ error: 'Erreur lors de la connexion à la base de données.' });
+      return res
+        .status(500)
+        .json({ error: 'Erreur lors de la connexion à la base de données.' });
     }
   },
   (req, res, next) => {
@@ -78,7 +77,9 @@ router.get(
     try {
       await dbMiddleware(req, res, next);
     } catch (error) {
-      return res.status(500).json({ error: 'Erreur lors de la connexion à la base de données.' });
+      return res
+        .status(500)
+        .json({ error: 'Erreur lors de la connexion à la base de données.' });
     }
   },
   messageController.getMessagesByConversation
@@ -91,7 +92,9 @@ router.post(
     try {
       await dbMiddleware(req, res, next);
     } catch (error) {
-      return res.status(500).json({ error: 'Erreur lors de la connexion à la base de données.' });
+      return res
+        .status(500)
+        .json({ error: 'Erreur lors de la connexion à la base de données.' });
     }
   },
   messageController.markMessagesAsRead

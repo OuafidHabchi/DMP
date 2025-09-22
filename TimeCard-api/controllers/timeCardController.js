@@ -1,5 +1,7 @@
 const path = require("path");
 const { Types } = require('mongoose');
+const { uploadMulterFiles, deleteByUrls } = require('../../utils/storage/uploader');
+
 const { sendPushNotification } = require('../../utils/notifications'); // Importer la fonction de notification
 
 
@@ -97,17 +99,21 @@ exports.updateTimeCard = async (req, res) => {
 // Supprimer une fiche de temps
 exports.deleteTimeCard = async (req, res) => {
   try {
-    const TimeCard = req.connection.models.TimeCard; // Modèle dynamique
+    const TimeCard = req.connection.models.TimeCard;
     const timeCard = await TimeCard.findByIdAndDelete(req.params.id);
-    if (timeCard) {
-      res.json({ message: 'Fiche de temps supprimée' });
-    } else {
-      res.status(500).json({ message: 'Fiche de temps non trouvée' });
+
+    if (!timeCard) return res.status(404).json({ message: 'Fiche de temps non trouvée' });
+
+    if (timeCard.image) {
+      try { await deleteByUrls([timeCard.image]); } catch (_) {}
     }
+
+    res.json({ message: 'Fiche de temps supprimée' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 // Récupérer une fiche de temps par employeeId et day
@@ -202,7 +208,6 @@ exports.getTimeCardsByDay = async (req, res) => {
 
 
 // Mettre à jour ou créer les attributs CortexDuree et CortexEndTime pour plusieurs TimeCards
-// Mettre à jour ou créer les attributs CortexDuree et CortexEndTime pour plusieurs TimeCards
 exports.bulkUpdateOrCreateCortexAttributes = async (req, res) => {
   try {
     const TimeCard = req.connection.models.TimeCard; // Modèle dynamique
@@ -285,34 +290,39 @@ exports.bulkUpdateOrCreateCortexAttributes = async (req, res) => {
 
 exports.uploadTimeCardImage = async (req, res) => {
   try {
-    const TimeCard = req.connection.models.TimeCard; // Dynamic model
-    const { id } = req.params; // Get time card ID from URL
+    const TimeCard = req.connection.models.TimeCard;
+    const { id } = req.params;
 
-    // Ensure the file is uploaded
-    if (!req.file) {
-      return res.status(500).json({ message: "No file uploaded." });
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: "No image file uploaded." });
     }
 
-    // Construct the file path
-    const imagePath = `/${req.file.filename}`;
+    // Upload vers Spaces sous timecards/{id}/...
+    const uploaded = await uploadMulterFiles([req.file], {
+      pathPrefix: `timecards/${id}`,
+    });
 
-    // Find the time card and update the image field
+    if (!uploaded.length) {
+      return res.status(500).json({ message: "Upload failed." });
+    }
+
+    // Optionnel: supprimer l’ancienne image si existante
+    const current = await TimeCard.findById(id).select('image');
+    if (current?.image) {
+      try { await deleteByUrls([current.image]); } catch (_) {}
+    }
+
     const timeCard = await TimeCard.findByIdAndUpdate(
       id,
-      { image: imagePath },
-      { new: true } // Return the updated document
+      { image: uploaded[0].url }, // URL publique Spaces
+      { new: true }
     );
 
-    if (!timeCard) {
-      return res.status(500).json({ message: "Time card not found." });
-    }
+    if (!timeCard) return res.status(404).json({ message: "Time card not found." });
 
-    res.status(200).json({
-      message: "Image uploaded successfully.",
-      timeCard,
-    });
+    res.status(200).json({ message: "Image uploaded successfully.", timeCard });
   } catch (error) {
-    res.status(500).json({ message: "Error uploading image.", error });
+    res.status(500).json({ message: "Error uploading image.", error: error.message || error });
   }
 };
 
