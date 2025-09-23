@@ -512,32 +512,149 @@ function generateTrainingDaysDetailTable(doc, dayRows = [], employees = {}, star
 
 
 
-// 🔁 ROUTE COMPLÈTE (avec tri par Wave - string)
+// 🔁 ROUTE /cortex-pdf — autonome (init modèles + enrichissement + PDF)
 router.post('/cortex-pdf', async (req, res) => {
   const { jsPDF } = require("jspdf");
   require("jspdf-autotable");
   const fs = require("fs");
   const os = require("os");
   const path = require("path");
+  const mongoose = require("mongoose");
+
+  // --- helpers locaux (dans la fonction) ---
+  const safe = (v, fb = "N/A") => (v !== undefined && v !== null && v !== "" ? v : fb);
+  const norm = (s) =>
+    String(s || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  const strId = (x) => {
+    try { return (x && x._id) ? String(x._id) : String(x || ""); } catch { return ""; }
+  };
+
+  // compile un modèle sur la connexion courante à partir d’un Schema ou d’un Model déjà compilé (réutilise .schema/.collection.name)
+  const compileOn = (conn, name, def) => {
+    if (!def) throw new Error(`Model "${name}" introuvable`);
+    if (conn.models[name]) return conn.model(name);
+    const schema =
+      def instanceof mongoose.Schema ? def :
+      def && def.schema ? def.schema :
+      null;
+    if (!schema) throw new Error(`Model "${name}" sans schema`);
+    const collection =
+      def && def.collection && def.collection.name ? def.collection.name : undefined;
+    return conn.model(name, schema, collection);
+  };
 
   try {
     const {
-      rows = [],         // { employeeId, driverName?, cortexDuration, cortexEndTime, staging, wave }
-      employees = {},    // map id -> employé
+      rows = [],        // front envoie: driverName?, employeeId?, staging, wave (cortex* ignorés ici)
+      employees = {},   // optionnel: map id -> { name, familyName }
       date = "Unknown Date",
       userName = "Unknown User",
     } = req.body;
 
-    // Utils
-    const getName = (id) => {
-      if (!id) return "";
-      const e = employees?.[String(id)];
-      return e ? `${e.name || ""} ${e.familyName || ""}`.trim() : "";
-    };
-    const safe = (v, fallback = "N/A") => (v ? v : fallback);
+    // --- connexion courante (multi-tenant OK si dbMiddleware a mis req.connection) ---
+    const conn = req.connection || mongoose.connection;
 
-    // 🔽 TRI par Wave (string) — vides en bas, comparaison "naturelle"
-    const sortedRows = [...rows].sort((a, b) => {
+    // --- import/compile des modèles nécessaires (EN LOCAL, DANS LA FONCTION) ---
+    //    (si déjà compilés sur cette connexion, compileOn les réutilise)
+    const defs = {};
+    try { defs.Employee       = require("../../Employes-api/models/Employee"); }       catch {}
+    try { defs.VanAssignment  = require("../../VanAssignmen-api/models/VanAssignment"); } catch {}
+    try { defs.Disponibilite  = require("../../Disponibiltes-api/models/disponibilite"); } catch {}
+    try { defs.Vehicle        = require("../../Fleet-api/models/vehicle"); }             catch {}
+
+    const Employee      = compileOn(conn, "Employee", defs.Employee);
+    const VanAssignment = compileOn(conn, "VanAssignment", defs.VanAssignment);
+    const Disponibilite = compileOn(conn, "Disponibilite", defs.Disponibilite);
+    const Vehicle       = compileOn(conn, "Vehicle", defs.Vehicle);
+
+    // --- normalisation date pour matching souple ---
+    const raw = String(date || "");
+    const decoded = decodeURIComponent(raw);
+    const dayStr = new Date(decoded).toDateString();
+
+    // 1) EMPLOYEES — index par nom si employeeId manquant
+    const employeeMap = { ...(employees || {}) }; // id -> { name, familyName }
+    const dbEmployees = await Employee.find({}, { name: 1, familyName: 1 }).lean();
+    for (const e of dbEmployees) {
+      const id = String(e._id);
+      if (!employeeMap[id]) employeeMap[id] = { name: e.name || "", familyName: e.familyName || "" };
+    }
+    const fullNameOf = (e) => (e ? `${e.name || ""} ${e.familyName || ""}`.trim() : "");
+    const nameIndex = {};
+    for (const [id, e] of Object.entries(employeeMap)) {
+      const n = norm(fullNameOf(e));
+      if (n && !nameIndex[n]) nameIndex[n] = id;
+    }
+
+    // 2) VAN ASSIGNMENTS du jour → employeeId -> van label
+    const assignments = await VanAssignment.find(
+      { $or: [{ date: { $in: [decoded, dayStr] } }, { selectedDay: { $in: [decoded, dayStr] } }] },
+      { employeeId: 1, vanId: 1, vanName: 1, vehicleNumber: 1 }
+    ).lean();
+
+    const vanByEmployee = {};
+    // charger véhicules si vanId existe
+    const vanIds = [...new Set(assignments.map(a => a.vanId).filter(Boolean).map(strId))];
+    let vehicleMap = {};
+    if (vanIds.length) {
+      const vehicles = await Vehicle.find({ _id: { $in: vanIds } }).lean();
+      vehicleMap = vehicles.reduce((acc, v) => { acc[String(v._id)] = v; return acc; }, {});
+    }
+    for (const a of assignments) {
+      const empId = String(a.employeeId || "");
+      let label = a.vehicleNumber || a.vanName || "";
+      if (!label && a.vanId && vehicleMap[strId(a.vanId)]) {
+        const v = vehicleMap[strId(a.vanId)];
+        label = v.vehicleNumber || v.name || v.label || v.plate || "N/A";
+      }
+      if (empId) vanByEmployee[empId] = label || "";
+    }
+
+    // 3) DISPONIBILITÉS du jour → helper/replacement
+    const disps = await Disponibilite.find(
+      { $or: [{ selectedDay: { $in: [decoded, dayStr] } }, { date: { $in: [decoded, dayStr] } }] },
+      { employeeId: 1, partnerType: 1, partnerEmployeeId: 1 }
+    ).lean();
+
+    const dispoByEmployee = {};
+    for (const d of disps) {
+      const empId = String(d.employeeId || "");
+      if (!empId) continue;
+      dispoByEmployee[empId] = {
+        partnerType: d.partnerType || "",
+        partnerEmployeeId: d.partnerEmployeeId ? String(d.partnerEmployeeId) : "",
+      };
+    }
+    const resolveAdditionalInfo = (empId) => {
+      const d = dispoByEmployee[empId] || {};
+      const t = d.partnerType || "";
+      const partnerId = d.partnerEmployeeId || "";
+      if (!t) return "";
+      if (t === "helper") {
+        const partnerName = fullNameOf(employeeMap[partnerId] || {});
+        return partnerName ? `Helper: ${partnerName}` : "Helper";
+      }
+      if (t === "replacement") {
+        const replacedName = fullNameOf(employeeMap[partnerId] || {});
+        return replacedName ? `Replaces: ${replacedName}` : "Replaces: N/A";
+      }
+      return "";
+    };
+
+    // 4) compléter employeeId manquant à partir du nom
+    const withEmployeeId = rows.map((r) => {
+      if (r.employeeId) return r;
+      const id = nameIndex[norm(r.driverName || "")];
+      return id ? { ...r, employeeId: id } : r;
+    });
+
+    // 5) tri par Wave (string) (vides en bas)
+    const sortedRows = [...withEmployeeId].sort((a, b) => {
       const wa = String(a.wave || "").trim();
       const wb = String(b.wave || "").trim();
       if (!wa && !wb) return 0;
@@ -546,20 +663,24 @@ router.post('/cortex-pdf', async (req, res) => {
       return wa.localeCompare(wb, undefined, { numeric: true, sensitivity: "base" });
     });
 
-    // TableRows (chaque timeCard = une ligne)
-    const tableRows = sortedRows.map((r) => ({
-      driverName: r.driverName || safe(getName(r.employeeId), "Unknown"),
-      cortexDuration: safe(r.cortexDuration),
-      cortexEndTime: safe(r.cortexEndTime),
-      staging: safe(r.staging),
-      wave: safe(r.wave, ""),
-    }));
+    // 6) construire données PDF (colonnes demandées)
+    const tableRows = sortedRows.map((r) => {
+      const empId = String(r.employeeId || "");
+      const empName =
+        r.driverName || fullNameOf(employeeMap[empId] || {}) || "Unknown";
+      const vanName = vanByEmployee[empId] || ""; // ← nom/num du van
+      const arriveTime = "";                       // ← colonne volontairement vide
+      const wave = safe(r.wave, "");
+      const staging = safe(r.staging, "");
+      const addInfo = resolveAdditionalInfo(empId); // ← Helper/Replaces
+      return [empName, vanName, arriveTime, wave, staging, addInfo];
+    });
 
+    // 7) PDF
     const doc = new jsPDF();
     const safeDate = String(date).replace(/[^\w\-]+/g, "_");
     const fileName = `RoutesDetails_${safeDate}.pdf`;
 
-    // Header
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
     doc.text("Routes Details Report", 10, 20);
@@ -569,29 +690,17 @@ router.post('/cortex-pdf', async (req, res) => {
     doc.text(`Generated by: ${userName}`, 10, 30);
     doc.text(`Date: ${date}`, 10, 37);
 
-    // Table (header bleu #001933, lignes claires)
     doc.autoTable({
       startY: 50,
-      head: [["Driver", "Cortex Duration", "Cortex End Time", "Staging", "Wave"]],
-      body: tableRows.map((tr) => [
-        tr.driverName,
-        tr.cortexDuration,
-        tr.cortexEndTime,
-        tr.staging,
-        tr.wave,
-      ]),
-      styles: {
-        font: "helvetica",
-        fontSize: 9,
-        cellPadding: 3,
-        textColor: [0, 0, 0],                 // texte noir
-      },
+      head: [["Employee", "Van", "Arrive Time", "Wave", "Staging", "Additional Info"]],
+      body: tableRows,
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 3, textColor: [0, 0, 0] },
       headStyles: { fillColor: [0, 25, 51], textColor: [255, 255, 255] }, // bleu #001933
-      bodyStyles: { fillColor: [255, 255, 255] },                         // blanc
-      alternateRowStyles: { fillColor: [242, 242, 242] },                 // gris clair
+      bodyStyles: { fillColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [242, 242, 242] },
     });
 
-    // Génération temporaire
+    // 8) envoi
     const out = doc.output("arraybuffer");
     const tmpPath = path.join(os.tmpdir(), fileName);
     fs.writeFileSync(tmpPath, Buffer.from(out));
@@ -610,6 +719,7 @@ router.post('/cortex-pdf', async (req, res) => {
     res.status(500).send("Error generating Routes Details PDF.");
   }
 });
+
 
 
 
