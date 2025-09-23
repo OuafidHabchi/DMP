@@ -692,7 +692,7 @@ router.post('/cortex-pdf', async (req, res) => {
 
     doc.autoTable({
       startY: 50,
-      head: [["Employee", "Van", "Arrive Time", "Wave", "Staging", "Additional Info"]],
+      head: [["Driver", "Vehicle", "Arrival Time", "Wave Time", "Staging", "Additional Info"]],
       body: tableRows,
       styles: { font: "helvetica", fontSize: 9, cellPadding: 3, textColor: [0, 0, 0] },
       headStyles: { fillColor: [0, 25, 51], textColor: [255, 255, 255] }, // bleu #001933
