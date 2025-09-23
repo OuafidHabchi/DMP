@@ -376,8 +376,14 @@ router.post('/timecard-pdf', async (req, res) => {
       styles: {
         font: 'helvetica',
         fontSize: 9,
-        cellPadding: 3,
+        cellPadding: 2,
         textColor: [255, 255, 255],
+        overflow: 'linebreak',
+        halign: 'center',
+        valign: 'middle',
+        lineWidth: 0.1,
+        lineColor: '#ffffff',
+       
       },
       headStyles: { fillColor: [0, 25, 51], textColor: [255, 255, 255] },
       didParseCell(data) {
@@ -540,8 +546,8 @@ router.post('/cortex-pdf', async (req, res) => {
     if (conn.models[name]) return conn.model(name);
     const schema =
       def instanceof mongoose.Schema ? def :
-      def && def.schema ? def.schema :
-      null;
+        def && def.schema ? def.schema :
+          null;
     if (!schema) throw new Error(`Model "${name}" sans schema`);
     const collection =
       def && def.collection && def.collection.name ? def.collection.name : undefined;
@@ -562,15 +568,15 @@ router.post('/cortex-pdf', async (req, res) => {
     // --- import/compile des modèles nécessaires (EN LOCAL, DANS LA FONCTION) ---
     //    (si déjà compilés sur cette connexion, compileOn les réutilise)
     const defs = {};
-    try { defs.Employee       = require("../../Employes-api/models/Employee"); }       catch {}
-    try { defs.VanAssignment  = require("../../VanAssignmen-api/models/VanAssignment"); } catch {}
-    try { defs.Disponibilite  = require("../../Disponibiltes-api/models/disponibilite"); } catch {}
-    try { defs.Vehicle        = require("../../Fleet-api/models/vehicle"); }             catch {}
+    try { defs.Employee = require("../../Employes-api/models/Employee"); } catch { }
+    try { defs.VanAssignment = require("../../VanAssignmen-api/models/VanAssignment"); } catch { }
+    try { defs.Disponibilite = require("../../Disponibiltes-api/models/disponibilite"); } catch { }
+    try { defs.Vehicle = require("../../Fleet-api/models/vehicle"); } catch { }
 
-    const Employee      = compileOn(conn, "Employee", defs.Employee);
+    const Employee = compileOn(conn, "Employee", defs.Employee);
     const VanAssignment = compileOn(conn, "VanAssignment", defs.VanAssignment);
     const Disponibilite = compileOn(conn, "Disponibilite", defs.Disponibilite);
-    const Vehicle       = compileOn(conn, "Vehicle", defs.Vehicle);
+    const Vehicle = compileOn(conn, "Vehicle", defs.Vehicle);
 
     // --- normalisation date pour matching souple ---
     const raw = String(date || "");
