@@ -257,7 +257,7 @@ exports.bulkUpdateOrCreateCortexAttributes = async (req, res) => {
       }
 
       // ✅ Notification dans tous les cas (si on a un token), avec message général
-      const screenPath = "(driver)/(tabs)/(Employe)/AssignedVanScreen";
+      const screenPath = "(driver)/(tabs)/(Employe)/RouteDetailsDa";
       const generalMessage = "Route details updated. Please open the app to review."; // message général
 
       const notification = { attempted: false, sent: false };

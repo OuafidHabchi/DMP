@@ -1,46 +1,56 @@
 const express = require('express');
 const dbMiddleware = require('../../utils/middleware');
+const upload = require('../../middlewares/upload'); // multer (memoryStorage)
 const dailyViolationController = require('../controllers/dailyViolationController');
+const violationTemplateController = require('../controllers/violationTemplateController');
+
 const router = express.Router();
 
-// Middleware pour spécifier le modèle nécessaire
+/** Précharger les modèles nécessaires pour ces routes */
 router.use((req, res, next) => {
-  req.requiredModels = ['DailyViolation'];
+  req.requiredModels = ['DailyViolation', 'DailyViolationTemplate', 'Employee'];
   next();
 });
 
-// Appliquer `dbMiddleware` dynamiquement sur les routes daily violations
+/** Connexion DB par requête */
 router.use(dbMiddleware);
 
-// Créer une violation
-router.post('/create', dailyViolationController.createViolation);
+/** Multer appliqué seulement si multipart/form-data */
+const maybeMulter = (req, res, next) => {
+  if (req.is('multipart/form-data')) {
+    return upload.any()(req, res, next); // accepte 'file' ou 'files'
+  }
+  return next();
+};
 
-// Obtenir toutes les violations
+// ----------------------
+// 🔖 ROUTES TEMPLATES 🔖
+// ----------------------
+router.post('/templates/create', violationTemplateController.createTemplate);
+router.get('/templates', violationTemplateController.getTemplates);
+router.put('/templates/:id', violationTemplateController.updateTemplate);
+router.delete('/templates/:id', violationTemplateController.deleteTemplate);
+
+// ----------------------
+// 🚦 ROUTES VIOLATIONS 🚦
+// ----------------------
+
+// créer (supporte fichier multipart OU image en DataURL dans body)
+router.post('/create', maybeMulter, dailyViolationController.createViolation);
+
+// liste complète
 router.get('/', dailyViolationController.getViolations);
 
-// Obtenir une violation par ID
-router.get('/:id', dailyViolationController.getViolationById);
-
-// Mettre à jour une violation
-router.put('/:id', dailyViolationController.updateViolation);
-
-// Supprimer une violation
-router.delete('/:id', dailyViolationController.deleteViolation);
-
-// Obtenir les violations par jour
+// routes spécifiques /violations/* (placées avant les routes paramétriques)
 router.get('/violations/by-day', dailyViolationController.getViolationsByDay);
-
-// Obtenir les violations hebdomadaires
 router.get('/violations/weekly', dailyViolationController.getWeeklyViolations);
-
-// Obtenir les violations hebdomadaires pour un employé
 router.get('/violations/employee-weekly', dailyViolationController.getEmployeeWeeklyViolations);
-
-// Obtenir les détails des violations pour un employé à une date donnée
 router.get('/violations/employee-details', dailyViolationController.getEmployeeViolationsByDate);
-
-// Endpoint: /api/dailyViolations/violations/all-employees-weekly
 router.get('/violations/all-employees-weekly', dailyViolationController.getAllEmployeesWeeklyViolations);
 
+// CRUD par id (après /violations/*)
+router.get('/:id', dailyViolationController.getViolationById);
+router.put('/:id', maybeMulter, dailyViolationController.updateViolation); // prêt pour update photo si besoin
+router.delete('/:id', dailyViolationController.deleteViolation);
 
 module.exports = router;

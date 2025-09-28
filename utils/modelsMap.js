@@ -6,6 +6,7 @@ const ClothesAssignment = require('../clothes-assignment-api/models/ClothesAssig
 const Comment = require('../Comment-api/models/Comment');
 const DailyNote = require('../DailyNote/models/DailyNote');
 const DailyViolation = require('../DailyViolation-api/models/DailyViolation');
+const DailyViolationTemplate = require('../DailyViolation-api/models/violationTemplateSchema');
 const Disponibilite = require('../Disponibiltes-api/models/disponibilite');
 const Event = require('../events-api/models/eventModel');
 const ExtraRoad = require('../ExtraRoad-api/models/Road');
@@ -71,7 +72,8 @@ const modelsMap = {
   Process,
   Candidate,
   FuelCard,
-  Training
+  Training,
+  DailyViolationTemplate
 };
 
 /**
