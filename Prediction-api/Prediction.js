@@ -701,7 +701,13 @@ router.post("/predict-shifts", async (req, res) => {
     }
 
     // 7) Priorité score & rookies
-    const scorePriority = { Fantastic: 1, Great: 2, Fair: 3, Poor: 4, "New DA": 5 };
+    const scorePriority = {
+      Platinum: 1,
+      Gold: 2,
+      Silver: 3,
+      Bronze: 4,
+      "New DA": 5
+    };
     const isRookie = (emp) => emp?.scoreCard === "New DA";
     const rookieAssignedCounts = {};
     for (const e of employees) {

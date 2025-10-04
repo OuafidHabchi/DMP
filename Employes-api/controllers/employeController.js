@@ -511,10 +511,10 @@ exports.updateScoreCardByTransporterIDs = async (req, res) => {
                 if (employe.role === 'manager') {
                     screen = '(manager)/(tabs)/(accueil)/Profile';
                 } else if (employe.role === 'driver') {
-                    screen = '(driver)/(tabs)/(Employe)/Profile';
+                    screen = '(driver)/(tabs)/(Employe)/WeeklyHistory';
                 }
 
-                const message = `Your new Score Card is : ${transporter.scoreCard}`;
+                const message = `Your new Score Card is: ${transporter.scoreCard}. Check more details in your app.`;
                 await sendPushNotification(employe.expoPushToken, message, screen);
             }
 

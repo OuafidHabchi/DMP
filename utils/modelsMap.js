@@ -35,6 +35,8 @@ const Process = require('../hiring-process-api/models/processSchema')
 const Candidate = require('../candidature-api/models/candidateSchema')
 const FuelCard = require('../fuelcard-api/models/FuelCard');
 const Training = require('../training-api/models/trainingSchema');
+const WeeklyScorecards = require('../weeklyScorecard-api/models/weeklyScorecardModel');
+
 
 
 
@@ -73,7 +75,8 @@ const modelsMap = {
   Candidate,
   FuelCard,
   Training,
-  DailyViolationTemplate
+  DailyViolationTemplate,
+  WeeklyScorecards,
 };
 
 /**

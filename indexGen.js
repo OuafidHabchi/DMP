@@ -36,7 +36,7 @@ app.use('/uploadsFacture', express.static(path.join(__dirname, 'Factures-api/upl
 
 
 const connectToDSP = require('./DSPListe-api/config/database');
-const {loadInitialDatabaseMap } = require('./DSPListe-api/services/dspService');
+const { loadInitialDatabaseMap } = require('./DSPListe-api/services/dspService');
 
 // Connexion à MongoDB et chargement initial de la liste
 const displayDatabaseMap = async () => {
@@ -104,6 +104,7 @@ const candidateRoutes = require('./candidature-api/routes/candidateRoutes');
 const fuelCardRoutes = require('./fuelcard-api/routes/fuelCardRoutes');
 const storageRoutes = require('./Storage-api/routes/storageRoutes');
 const trainingRoutes = require('./training-api/routes/trainingRoutes');
+const WeeklyScorecardRoutes = require('./weeklyScorecard-api/routes/weeklyScorecardRoutes'); 
 
 
 
@@ -149,6 +150,8 @@ app.use('/api/candidate', candidateRoutes);
 app.use('/api/fuelcards', fuelCardRoutes);
 app.use('/api/storage', storageRoutes);
 app.use('/api/training', trainingRoutes);
+app.use('/api/scorecards', WeeklyScorecardRoutes);
+
 
 
 
